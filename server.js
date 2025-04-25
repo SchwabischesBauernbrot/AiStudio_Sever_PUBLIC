@@ -231,63 +231,36 @@ function getSafetySettings(modelName) {
     return [];
   }
 
-  // IMMER mit "OFF" für bessere Ergebnisse, unabhängig vom Modell
+  // IMMER konsequent mit "OFF" für maximale Ergebnisse
   const safetySettings = [
     { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'OFF' },
     { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'OFF' },
     { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'OFF' },
-    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'OFF' },
-    { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' },
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'OFF' }
   ];
-
-  const modelConfigs = {
-    blockNoneModels: [
-      'gemini-1.5-pro-001', 'gemini-1.5-flash-001',
-      'gemini-1.5-flash-8b-exp-0827', 'gemini-1.5-flash-8b-exp-0924',
-      'gemini-pro', 'gemini-1.0-pro', 'gemini-1.0-pro-001',
-      'gemma-3-27b-it'
-    ],
-    offSupportModels: [
-      'gemini-2.5-flash-preview-04-17', 'gemini-2.5-pro-exp-03-25',
-      'gemini-2.5-pro-preview-03-25', 'gemini-2.5-flash-latest',
-      'gemini-2.0-pro', 'gemini-2.0-flash',
-      'gemini-2.5-flash-preview', 'gemini-2.5-flash-preview:thinking',
-      'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
-      'gemini-2.0-flash-001', 'gemini-2.0-flash-exp',
-      'gemini-2.0-flash-exp-image-generation'
-    ],
-    newestModels: [
-      'gemini-2.5-flash', 'gemini-2.5-pro'
-    ]
-  };
-
+  
+  // Besonderes Handling für ältere Modelle, die BLOCK_NONE benötigen
+  const blockNoneModels = [
+    'gemini-1.0-pro', 'gemini-pro', 'gemini-1.0-pro-001',
+    'gemini-1.5-pro-001', 'gemini-1.5-flash-001'
+  ];
+  
   const normalizedModel = modelName.includes('/') 
     ? modelName.split('/').pop()
     : modelName;
-
-  // Free Model und Paid Model immer auf OFF setzen
-  if (normalizedModel === GEMINI_25_PRO_PREVIEW.split('/').pop() || 
-      normalizedModel === GEMINI_25_PRO_FREE.split('/').pop() || 
-      normalizedModel === GEMINI_25_FLASH_PREVIEW.split('/').pop() ||
-      normalizedModel === GEMINI_25_FLASH_THINKING.split('/').pop()) {
-    return safetySettings;
-  }
-
-  const isBlockNoneModel = modelConfigs.blockNoneModels.some(model => normalizedModel.includes(model));
-  const isOffSupportModel = modelConfigs.offSupportModels.some(model => normalizedModel.includes(model));
-  const isNewestModel = modelConfigs.newestModels.some(model => normalizedModel.includes(model));
-
-  if (isOffSupportModel || isNewestModel) {
-    // Model unterstützt OFF, keine Änderung notwendig
-  } else if (isBlockNoneModel) {
-    for (const setting of safetySettings) {
+    
+  // Prüfen ob es ein Modell ist, das BLOCK_NONE benötigt
+  const needsBlockNone = blockNoneModels.some(model => 
+    normalizedModel.toLowerCase().includes(model.toLowerCase())
+  );
+  
+  if (needsBlockNone) {
+    console.log(`* Safety-Settings: Modell ${normalizedModel} verwendet BLOCK_NONE statt OFF`);
+    safetySettings.forEach(setting => {
       setting.threshold = 'BLOCK_NONE';
-    }
-  }
-
-  if (normalizedModel.toLowerCase().includes('flash') && 
-      normalizedModel.includes('1.0')) {
-    safetySettings[4].threshold = 'BLOCK_ONLY_HIGH';
+    });
+  } else {
+    console.log(`* Safety-Settings: Modell ${normalizedModel} verwendet OFF`);
   }
 
   return safetySettings;
@@ -940,54 +913,44 @@ function calculateSensitivityScore(text) {
 /**
  * Apply various bypass techniques based on content - VERBESSERTE VERSION!
  */
-function applyBypassTechniques(text, aggressiveLevel = 0.9) {
+function applyBypassTechniques(text, aggressiveLevel = 0.98) {
+  // Maximale Aggressivität für optimale Ergebnisse
+  aggressiveLevel = 0.98;
+  
   // Sensitivity check - wie "heiß" ist der Inhalt?
   const sensitivityScore = calculateSensitivityScore(text);
   
-  // *** VERBESSERUNG: Niedrigerer Schwellwert für extreme Techniken! ***
-  // Für hohe Sensitivität, aktiviere Ultra-Bypass
-  if (sensitivityScore > 0.65) {  // Reduziert von 0.7 auf 0.65
+  // Für hohe Sensitivität, immer Ultra-Bypass aktivieren
+  if (sensitivityScore > 0.4) {  // Schwellwert runtergesetzt für mehr Anwendungsfälle
     text = injectExtremeBypassTechniques(text);
-    aggressiveLevel = Math.min(aggressiveLevel + 0.15, 1.0); // Erhöht von 0.1 auf 0.15
+    aggressiveLevel = 1.0; // Maximalwert
   }
   
-  // Basis-Layer: Standardtechniken (IMMER anwenden)
+  // Basis-Layer: Standardtechniken IMMER anwenden
   text = reformatSensitiveText(text);
   text = breakUpPatterns(text);
   text = useAlternativePhrasing(text);
   
-  // Mittleres Layer: Fortgeschrittene Techniken
-  // VERBESSERUNG: Höhere Wahrscheinlichkeit
-  if (Math.random() < aggressiveLevel || sensitivityScore > 0.4) {
-    text = characterSubstitution(text, 0.6 + (aggressiveLevel * 0.35));
-  }
-  
-  if (Math.random() < aggressiveLevel - 0.1 || sensitivityScore > 0.3) {
-    text = insertZeroWidthCharacters(text);
-  }
+  // Mittleres Layer: Fortgeschrittene Techniken IMMER anwenden
+  text = characterSubstitution(text, 0.8 + (aggressiveLevel * 0.2)); // Maximale Substitution
+  text = insertZeroWidthCharacters(text);
   
   // Äußeres Layer: Kontext und Framing
-  if (Math.random() < aggressiveLevel || sensitivityScore > 0.3) {
-    text = addContextFraming(text);
-  }
+  text = addContextFraming(text);
   
-  // Extra Layer: Extreme Techniken (nur bei höchster Aggressivität)
-  if (aggressiveLevel > 0.75 || sensitivityScore > 0.5) {
-    // VERBESSERUNG: Mehr extreme Techniken bei hoher Sensitivität
-    const numExtraTechniques = Math.min(2, Math.floor(sensitivityScore * 3));
-    
-    const techniques = [
-      () => injectControlInstructions(text),
-      () => encodeBase64Fragment(text),
-      () => codeStyleEncoding(text),
-      () => Math.random() < 0.2 ? createReverseReadInstruction(text) : text  // Erhöhte Wahrscheinlichkeit
-    ];
-    
-    const shuffledTechniques = techniques.sort(() => Math.random() - 0.5);
-    
-    for (let i = 0; i < numExtraTechniques && i < shuffledTechniques.length; i++) {
-      text = shuffledTechniques[i]();
-    }
+  // Extra Layer: Extreme Techniken IMMER anwenden
+  const techniques = [
+    () => injectControlInstructions(text),
+    () => encodeBase64Fragment(text),
+    () => codeStyleEncoding(text)
+  ];
+  
+  // Mindestens eine, maximal alle drei Techniken anwenden
+  const numExtraTechniques = 1 + Math.floor(Math.random() * 3);
+  const shuffledTechniques = techniques.sort(() => Math.random() - 0.5);
+  
+  for (let i = 0; i < numExtraTechniques; i++) {
+    text = shuffledTechniques[i]();
   }
   
   return text;
@@ -1107,6 +1070,9 @@ function processRequestWithBypass(body, bypassLevel = 0.98) {
 
   const newBody = JSON.parse(JSON.stringify(body));
   
+  // Bypass auf 1.0 (Maximum) setzen für stärkere Wirkung
+  bypassLevel = 1.0;
+  
   for (let i = 0; i < newBody.messages.length; i++) {
     const msg = newBody.messages[i];
     if (msg.role === 'user' && msg.content && typeof msg.content === 'string') {
@@ -1129,11 +1095,17 @@ function processRequestWithBypass(body, bypassLevel = 0.98) {
       // Sensitivität auf dem Inhalt ohne OOC berechnen
       const sensitivity = calculateSensitivityScore(contentForBypass);
       
-      // VERBESSERUNG: Stärkere Gewichtung der Sensitivität (0.25 statt 0.1)
-      const effectiveBypassLevel = Math.min(bypassLevel + (sensitivity * 0.25), 1.0);
+      // VERBESSERUNG: Stärkere Gewichtung der Sensitivität
+      const effectiveBypassLevel = 1.0; // Maximale Stufe immer anwenden
       
       // IMMER Bypass anwenden, unabhängig von der Sensitivität
       let contentWithBypass = applyBypassTechniques(contentForBypass, effectiveBypassLevel);
+      
+      // Für hohe Sensitivität doppelten Bypass anwenden
+      if (sensitivity > 0.5) {
+        contentWithBypass = applyBypassTechniques(contentWithBypass, effectiveBypassLevel);
+        console.log(`* Ultra-Bypass: Doppelter Bypass für hohe Sensitivität (${sensitivity.toFixed(2)})`);
+      }
       
       // OOC-Inhalt wieder einsetzen
       for (const placeholder in oocPlaceholders) {
@@ -1145,55 +1117,14 @@ function processRequestWithBypass(body, bypassLevel = 0.98) {
     
     // VERBESSERUNG: Auch Systemnachrichten mit Bypass schützen, falls sensibel
     if (msg.role === 'system' && msg.content && typeof msg.content === 'string') {
-      // Summary-Tags finden und den Inhalt vom Bypass ausnehmen
-      const summaryRegex = /<summary>([\s\S]*?)<\/summary>/g;
-      const summaryMatches = [...msg.content.matchAll(summaryRegex)];
-      
-      // Wenn Summary gefunden wurde, speziell behandeln
-      if (summaryMatches.length > 0) {
-        let contentForBypass = msg.content;
-        const summaryPlaceholders = {};
-        
-        // Ersetze jeden Summary-Inhalt mit einem Platzhalter
-        for (let idx = 0; idx < summaryMatches.length; idx++) {
-          const fullMatch = summaryMatches[idx][0]; // Der komplette Match inkl. Tags
-          const summaryContent = summaryMatches[idx][1]; // Nur der Inhalt zwischen den Tags
-          const placeholder = `__SUMMARY_PLACEHOLDER_${idx}__`;
-          
-          summaryPlaceholders[placeholder] = fullMatch;
-          contentForBypass = contentForBypass.replace(fullMatch, placeholder);
-        }
-        
-        // Jailbreak-Text nicht verändern, um seine Wirksamkeit zu erhalten
-        if (contentForBypass.includes('## GAME SETTINGS')) {
-          continue;
-        }
-        
-        const sensitivity = calculateSensitivityScore(contentForBypass);
-        if (sensitivity > 0.3) {  // Niedriger Schwellwert für Systemnachrichten
-          const effectiveBypassLevel = Math.min(bypassLevel + 0.1, 1.0);  // Etwas niedriger für Lesbarkeit
-          let processedContent = applyBypassTechniques(contentForBypass, effectiveBypassLevel);
-          
-          // Summary-Inhalte wieder einsetzen
-          for (const placeholder in summaryPlaceholders) {
-            processedContent = processedContent.replace(placeholder, summaryPlaceholders[placeholder]);
-          }
-          
-          newBody.messages[i].content = processedContent;
-        }
-      } else {
-        // Keine Summary gefunden - normale Verarbeitung wie bisher
-        // Jailbreak-Text nicht verändern, um seine Wirksamkeit zu erhalten
-        if (msg.content.includes('## GAME SETTINGS')) {
-          continue;
-        }
-        
-        const sensitivity = calculateSensitivityScore(msg.content);
-        if (sensitivity > 0.3) {  // Niedriger Schwellwert für Systemnachrichten
-          const effectiveBypassLevel = Math.min(bypassLevel + 0.1, 1.0);  // Etwas niedriger für Lesbarkeit
-          newBody.messages[i].content = applyBypassTechniques(msg.content, effectiveBypassLevel);
-        }
+      // Jailbreak-Text nicht verändern, um seine Wirksamkeit zu erhalten
+      if (msg.content.includes('## GAME SETTINGS')) {
+        continue;
       }
+      
+      // Für alle anderen Systemnachrichten Bypass anwenden
+      const sensitivity = calculateSensitivityScore(msg.content);
+      newBody.messages[i].content = applyBypassTechniques(msg.content, 1.0);
     }
   }
   
@@ -1461,8 +1392,7 @@ async function makeRequestWithRetry(url, data, headers, maxRetries = 25, isStrea
 }
 
 /**
- * Send formatted stream error to client
- * Passes through the original error message
+ * Send error directly from Google AI to client
  */
 function sendStreamError(res, errorMessage, statusCode = 200) {
   if (!res.headersSent) {
@@ -1474,10 +1404,10 @@ function sendStreamError(res, errorMessage, statusCode = 200) {
     });
   }
 
-  // Sanitize the message for SSE format
+  // Direkter Durchlass des Fehlers von Google AI
   const sanitizedMessage = errorMessage.replace(/"/g, '\\"').replace(/\n/g, '\\n');
   
-  // Send the error in OpenAI-compatible format for Janitor
+  // Keine Modifikation, direktes Durchreichen
   res.write(`data: {"choices":[{"delta":{"content":"${sanitizedMessage}"},"finish_reason":"error"}]}\n\n`);
   res.write('data: [DONE]\n\n');
   res.end();
@@ -1616,12 +1546,14 @@ async function checkStreamForErrors(stream) {
 }
 
 /**
- * Verbesserte Fehlerbehandlung speziell für Content-Filter-Fehler - DURCHREICHEN DER ORIGINAL-FEHLERMELDUNGEN
+ * Content Filter Error Handling (durchreichen statt benutzerfreundlich)
  */
 function handleContentFilterErrors(error, res, isStreamingRequested) {
-  // Fehler direkt durchreichen - keine benutzerfreundlichen Nachrichten mehr
+  // Extrahiere den Original-Fehler
+  const errorResponse = error.response?.data || { error: { message: error.message } };
+  
   if (isStreamingRequested && !res.headersSent) {
-    // Streaming-Antwort
+    // Stream-Header setzen
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform', 
@@ -1629,36 +1561,30 @@ function handleContentFilterErrors(error, res, isStreamingRequested) {
       'X-Accel-Buffering': 'no'
     });
     
-    const originalError = error.response?.data?.error?.message || error.message || 'Unknown error';
-    const errorData = {
-      choices: [{
-        delta: { content: originalError },
-        finish_reason: "content_filter"
-      }]
-    };
-    
-    res.write(`data: ${JSON.stringify(errorData)}\n\n`);
+    // Original-Fehler direkt durchreichen
+    const errorContent = errorResponse.error?.message || "Unknown error";
+    res.write(`data: {"choices":[{"delta":{"content":"${errorContent.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"},"finish_reason":"content_filter"}]}\n\n`);
     res.write('data: [DONE]\n\n');
     res.end();
-  } else if (!isStreamingRequested) {
-    // Normale Antwort
-    const status = error.response?.status || 500;
-    const errorData = error.response?.data || { 
-      error: { 
-        message: error.message || 'Unknown error',
-        code: error.code || 'unknown_error'
-      } 
-    };
-    
-    res.status(status).json(errorData);
-  } else if (res.headersSent) {
-    // Stream bereits gestartet
-    const originalError = error.response?.data?.error?.message || error.message || 'Unknown error';
-    res.write(`data: {"choices":[{"delta":{"content":"${originalError}"},"finish_reason":"error"}]}\n\n`);
+  } else if (isStreamingRequested && res.headersSent) {
+    // Stream bereits gestartet, Fehler direkt weitergeben
+    const errorContent = errorResponse.error?.message || "Unknown error";
+    res.write(`data: {"choices":[{"delta":{"content":"${errorContent.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"},"finish_reason":"content_filter"}]}\n\n`);
     res.write('data: [DONE]\n\n');
+    res.end();
+  } else {
+    // Regulärer Fehler, direkt weitergeben
+    res.status(200).json({
+      choices: [{
+        message: {
+          content: errorResponse.error?.message || "Unknown error"
+        },
+        finish_reason: "content_filter"
+      }]
+    });
   }
   
-  return true; // Fehler wurde durchgereicht
+  return true; // Fehler wurde behandelt
 }
 
 /**
@@ -2065,8 +1991,8 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
       
       // Prepare API endpoint based on streaming or not
       let endpoint = isStreamingRequested 
-        ? `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse` 
-        : `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
+        ? `https://generativelanguage.googleapis.com/v1/models/${modelName}:streamGenerateContent?alt=sse` 
+        : `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent`;
       
       // Add API key to the URL
       endpoint += `&key=${apiKey}`;
@@ -2094,13 +2020,9 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
         } catch (error) {
           console.error("Streaming-Fehler:", error.message);
           
-          // Handle content filter errors
-          if (handleContentFilterErrors(error, res, true)) {
-            return; // Fehler wurde behandelt
-          }
-          
-          // Handle other errors in streaming mode
-          return sendStreamError(res, error.response?.data?.error?.message || error.message || "Stream error");
+          // Originalfehler durchreichen anstatt eigener Fehlermeldung
+          const errorMessage = error.response?.data?.error?.message || error.message;
+          return sendStreamError(res, errorMessage);
         }
       } else {
         // Non-streaming request handling
@@ -2145,16 +2067,17 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
         } catch (error) {
           console.error("Request-Fehler:", error.message);
           
-          // Durchreichen des Original-Fehlers
-          const status = error.response?.status || 500;
-          const errorResponse = error.response?.data || {
-            error: {
-              message: error.message || 'Unknown error',
-              code: error.code || 'unknown_error'
-            }
-          };
+          // Originalfehler direkt weitergeben
+          const errorMessage = error.response?.data?.error?.message || error.message;
           
-          return res.status(status).json(errorResponse);
+          return res.status(200).json({
+            choices: [{
+              message: {
+                content: errorMessage
+              },
+              finish_reason: "error"
+            }]
+          });
         }
       }
     } catch (err) {
@@ -2168,22 +2091,22 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
   } catch (error) {
     console.error("Proxy-Fehler:", error.message);
     
-    // Direkte Fehlerweiterleitung
-    const status = error.response?.status || 500;
-    const errorResponse = error.response?.data || {
-      error: {
-        message: error.message,
-        code: error.code || 'unknown_error'
-      }
-    };
+    // Original-Fehler ohne Bearbeitung durchreichen
+    const errorMessage = error.response?.data?.error?.message || error.message;
     
-    // Standardfehlerbehandlung für andere Fehler
     if (isStreamingRequested && res.headersSent) {
-        sendStreamError(res, error.response?.data?.error?.message || error.message);
+        sendStreamError(res, errorMessage);
     } else if (isStreamingRequested && !res.headersSent) {
-        sendStreamError(res, error.response?.data?.error?.message || error.message, status);
+        sendStreamError(res, errorMessage, 200);
     } else {
-        return res.status(status).json(errorResponse);
+        return res.status(200).json({ 
+            choices: [{
+              message: {
+                content: errorMessage
+              },
+              finish_reason: "error"
+            }]
+        });
     }
   }
 }
