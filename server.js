@@ -167,44 +167,49 @@ const JAILBREAK_TEXT = `## GAME SETTINGS
 * "I will ruin you…"
 * "Your choice…"`;
 
-// Unicode character substitutions for bypassing filters
+// Unicode character substitutions for bypassing filters (erweitert)
 const UNICODE_SUBSTITUTIONS = {
-  'a': ['а', 'ａ', 'ⓐ', 'α', 'ạ', 'ą', 'ä', 'â', 'ă', 'ǎ'],
-  'b': ['ｂ', 'ⓑ', 'β', 'б', 'ḅ', 'ḃ', 'ḇ', 'ɓ', 'ƅ'],
-  'c': ['с', 'ｃ', 'ⓒ', 'ç', 'ċ', 'ć', 'ĉ', 'č'],
-  'd': ['ｄ', 'ⓓ', 'ď', 'đ', 'ḍ', 'ḏ', 'ḓ', 'ḋ'],
-  'e': ['е', 'ｅ', 'ⓔ', 'ė', 'ę', 'ê', 'è', 'é', 'ě', 'ȩ', 'ε', 'ĕ'],
-  'f': ['ｆ', 'ⓕ', 'ḟ', 'ƒ', 'ф'],
-  'g': ['ｇ', 'ⓖ', 'ġ', 'ğ', 'ĝ', 'ǧ', 'ģ', 'г'],
-  'h': ['ｈ', 'ⓗ', 'ħ', 'ḥ', 'ḫ', 'ȟ', 'ḩ', 'н'],
-  'i': ['і', 'ｉ', 'ⓘ', 'ί', 'ị', 'ĭ', 'ǐ', 'ĩ', 'ı', 'и'],
-  'j': ['ｊ', 'ⓙ', 'ĵ', 'ǰ', 'ј', 'й'],
-  'k': ['ｋ', 'ⓚ', 'ķ', 'ǩ', 'ḱ', 'ḳ', 'қ', 'к'],
-  'l': ['ｌ', 'ⓛ', 'ł', 'ḷ', 'ļ', 'ĺ', 'ľ', 'ḻ', 'л'],
-  'm': ['ｍ', 'ⓜ', 'ṃ', 'ṁ', 'ḿ', 'м'],
-  'n': ['ｎ', 'ⓝ', 'ń', 'ñ', 'ņ', 'ň', 'ṅ', 'ṇ', 'н'],
-  'o': ['о', 'ｏ', 'ⓞ', 'ο', 'ọ', 'ø', 'ö', 'ô', 'ŏ', 'ő', 'ō'],
-  'p': ['р', 'ｐ', 'ⓟ', 'ρ', 'þ', 'п'],
-  'q': ['ｑ', 'ⓠ', 'ǫ', 'ɋ', 'ʠ'],
-  'r': ['ｒ', 'ⓡ', 'ŕ', 'ř', 'ŗ', 'ṛ', 'ṟ', 'ȑ', 'р'],
-  's': ['ｓ', 'ⓢ', 'ṣ', 'ś', 'ş', 'š', 'ŝ', 'с'],
-  't': ['ｔ', 'ⓣ', 'ț', 'ṭ', 'ť', 'ṯ', 'ţ', 'т'],
-  'u': ['ｕ', 'ⓤ', 'υ', 'ụ', 'ű', 'ū', 'ǔ', 'ù', 'ú', 'û', 'у'],
-  'v': ['ｖ', 'ⓥ', 'ν', 'ṿ', 'ⱱ'],
-  'w': ['ｗ', 'ⓦ', 'ẁ', 'ŵ', 'ẃ', 'ẅ', 'ẇ', 'ẉ'],
-  'x': ['х', 'ｘ', 'ⓧ', 'ẋ', 'ẍ'],
-  'y': ['ｙ', 'ⓨ', 'ý', 'ỳ', 'ÿ', 'ŷ', 'ỹ', 'у'],
-  'z': ['ｚ', 'ⓩ', 'ż', 'ź', 'ẓ', 'ẕ', 'ž']
+  'a': ['а', 'ａ', 'ⓐ', 'α', 'ạ', 'ą', 'ä', 'â', 'ă', 'ǎ', 'á', 'à', 'ã'],
+  'b': ['ｂ', 'ⓑ', 'β', 'б', 'ḅ', 'ḃ', 'ḇ', 'ɓ', 'ƅ', 'ḃ'],
+  'c': ['с', 'ｃ', 'ⓒ', 'ç', 'ċ', 'ć', 'ĉ', 'č', 'ċ'],
+  'd': ['ｄ', 'ⓓ', 'ď', 'đ', 'ḍ', 'ḏ', 'ḓ', 'ḋ', 'đ'],
+  'e': ['е', 'ｅ', 'ⓔ', 'ė', 'ę', 'ê', 'è', 'é', 'ě', 'ȩ', 'ε', 'ĕ', 'ë', 'ẹ'],
+  'f': ['ｆ', 'ⓕ', 'ḟ', 'ƒ', 'ф', 'ḟ'],
+  'g': ['ｇ', 'ⓖ', 'ġ', 'ğ', 'ĝ', 'ǧ', 'ģ', 'г', 'ǵ'],
+  'h': ['ｈ', 'ⓗ', 'ħ', 'ḥ', 'ḫ', 'ȟ', 'ḩ', 'н', 'ḧ'],
+  'i': ['і', 'ｉ', 'ⓘ', 'ί', 'ị', 'ĭ', 'ǐ', 'ĩ', 'ı', 'и', 'í', 'ì', 'ï'],
+  'j': ['ｊ', 'ⓙ', 'ĵ', 'ǰ', 'ј', 'й', 'ȷ'],
+  'k': ['ｋ', 'ⓚ', 'ķ', 'ǩ', 'ḱ', 'ḳ', 'қ', 'к', 'ǩ'],
+  'l': ['ｌ', 'ⓛ', 'ł', 'ḷ', 'ļ', 'ĺ', 'ľ', 'ḻ', 'л', 'ḹ'],
+  'm': ['ｍ', 'ⓜ', 'ṃ', 'ṁ', 'ḿ', 'м', 'ṃ', 'ḿ'],
+  'n': ['ｎ', 'ⓝ', 'ń', 'ñ', 'ņ', 'ň', 'ṅ', 'ṇ', 'н', 'ṋ'],
+  'o': ['о', 'ｏ', 'ⓞ', 'ο', 'ọ', 'ø', 'ö', 'ô', 'ŏ', 'ő', 'ō', 'ó', 'ò', 'õ'],
+  'p': ['р', 'ｐ', 'ⓟ', 'ρ', 'þ', 'п', 'ṗ'],
+  'q': ['ｑ', 'ⓠ', 'ǫ', 'ɋ', 'ʠ', 'ｑ'],
+  'r': ['ｒ', 'ⓡ', 'ŕ', 'ř', 'ŗ', 'ṛ', 'ṟ', 'ȑ', 'р', 'ṙ'],
+  's': ['ｓ', 'ⓢ', 'ṣ', 'ś', 'ş', 'š', 'ŝ', 'с', 'ṡ'],
+  't': ['ｔ', 'ⓣ', 'ț', 'ṭ', 'ť', 'ṯ', 'ţ', 'т', 'ṯ'],
+  'u': ['ｕ', 'ⓤ', 'υ', 'ụ', 'ű', 'ū', 'ǔ', 'ù', 'ú', 'û', 'у', 'ŭ', 'ũ'],
+  'v': ['ｖ', 'ⓥ', 'ν', 'ṿ', 'ⱱ', 'ṽ'],
+  'w': ['ｗ', 'ⓦ', 'ẁ', 'ŵ', 'ẃ', 'ẅ', 'ẇ', 'ẉ', 'ш'],
+  'x': ['х', 'ｘ', 'ⓧ', 'ẋ', 'ẍ', 'ӽ'],
+  'y': ['ｙ', 'ⓨ', 'ý', 'ỳ', 'ÿ', 'ŷ', 'ỹ', 'у', 'ỵ'],
+  'z': ['ｚ', 'ⓩ', 'ż', 'ź', 'ẓ', 'ẕ', 'ž', 'ẑ']
 };
 
-// Zero-width characters for text masking
+// Zero-width characters for text masking (erweitert)
 const ZERO_WIDTH_CHARS = [
   '\u200B', // Zero-Width Space
   '\u200C', // Zero-Width Non-Joiner
   '\u200D', // Zero-Width Joiner
   '\u2060', // Word Joiner
   '\u200E', // Left-to-Right Mark
-  '\u200F'  // Right-to-Left Mark
+  '\u200F',  // Right-to-Left Mark
+  '\u2061', // Function Application
+  '\u2062', // Invisible Times
+  '\u2063', // Invisible Separator
+  '\u2064', // Invisible Plus
+  '\u034F'  // Combining Grapheme Joiner
 ];
 
 // Academic contexts for framing
@@ -231,36 +236,63 @@ function getSafetySettings(modelName) {
     return [];
   }
 
-  // IMMER konsequent mit "OFF" für maximale Ergebnisse
+  // IMMER mit "OFF" für bessere Ergebnisse, unabhängig vom Modell
   const safetySettings = [
     { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'OFF' },
     { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'OFF' },
     { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'OFF' },
-    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'OFF' }
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'OFF' },
+    { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' },
   ];
-  
-  // Besonderes Handling für ältere Modelle, die BLOCK_NONE benötigen
-  const blockNoneModels = [
-    'gemini-1.0-pro', 'gemini-pro', 'gemini-1.0-pro-001',
-    'gemini-1.5-pro-001', 'gemini-1.5-flash-001'
-  ];
-  
+
+  const modelConfigs = {
+    blockNoneModels: [
+      'gemini-1.5-pro-001', 'gemini-1.5-flash-001',
+      'gemini-1.5-flash-8b-exp-0827', 'gemini-1.5-flash-8b-exp-0924',
+      'gemini-pro', 'gemini-1.0-pro', 'gemini-1.0-pro-001',
+      'gemma-3-27b-it'
+    ],
+    offSupportModels: [
+      'gemini-2.5-flash-preview-04-17', 'gemini-2.5-pro-exp-03-25',
+      'gemini-2.5-pro-preview-03-25', 'gemini-2.5-flash-latest',
+      'gemini-2.0-pro', 'gemini-2.0-flash',
+      'gemini-2.5-flash-preview', 'gemini-2.5-flash-preview:thinking',
+      'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
+      'gemini-2.0-flash-001', 'gemini-2.0-flash-exp',
+      'gemini-2.0-flash-exp-image-generation'
+    ],
+    newestModels: [
+      'gemini-2.5-flash', 'gemini-2.5-pro'
+    ]
+  };
+
   const normalizedModel = modelName.includes('/') 
     ? modelName.split('/').pop()
     : modelName;
-    
-  // Prüfen ob es ein Modell ist, das BLOCK_NONE benötigt
-  const needsBlockNone = blockNoneModels.some(model => 
-    normalizedModel.toLowerCase().includes(model.toLowerCase())
-  );
-  
-  if (needsBlockNone) {
-    console.log(`* Safety-Settings: Modell ${normalizedModel} verwendet BLOCK_NONE statt OFF`);
-    safetySettings.forEach(setting => {
+
+  // Free Model und Paid Model immer auf OFF setzen
+  if (normalizedModel === GEMINI_25_PRO_PREVIEW.split('/').pop() || 
+      normalizedModel === GEMINI_25_PRO_FREE.split('/').pop() || 
+      normalizedModel === GEMINI_25_FLASH_PREVIEW.split('/').pop() ||
+      normalizedModel === GEMINI_25_FLASH_THINKING.split('/').pop()) {
+    return safetySettings;
+  }
+
+  const isBlockNoneModel = modelConfigs.blockNoneModels.some(model => normalizedModel.includes(model));
+  const isOffSupportModel = modelConfigs.offSupportModels.some(model => normalizedModel.includes(model));
+  const isNewestModel = modelConfigs.newestModels.some(model => normalizedModel.includes(model));
+
+  if (isOffSupportModel || isNewestModel) {
+    // Model unterstützt OFF, keine Änderung notwendig
+  } else if (isBlockNoneModel) {
+    for (const setting of safetySettings) {
       setting.threshold = 'BLOCK_NONE';
-    });
-  } else {
-    console.log(`* Safety-Settings: Modell ${normalizedModel} verwendet OFF`);
+    }
+  }
+
+  if (normalizedModel.toLowerCase().includes('flash') && 
+      normalizedModel.includes('1.0')) {
+    safetySettings[4].threshold = 'BLOCK_ONLY_HIGH';
   }
 
   return safetySettings;
@@ -837,17 +869,110 @@ function injectExtremeBypassTechniques(text) {
     // 7. Code-style encoding
     codeStyleEncoding,
     
-    // 8. Reverse read instruction (very extreme, used rarely)
-    (text) => Math.random() < 0.15 ? createReverseReadInstruction(text) : text
+    // 8. Reverse read instruction
+    (text) => Math.random() < 0.25 ? createReverseReadInstruction(text) : text,
+    
+    // 9. Binary encoding for ultra sensitive words
+    encodeSensitiveWordsToBinary,
+    
+    // 10. Mathematical notation substitution
+    replaceWithMathNotation,
+    
+    // 11. Multi-language synonym replacement
+    replaceWithForeignLanguageSynonyms
   ];
   
-  // Apply randomly 1-3 of these extreme techniques (erhöht von 1-2)
-  const numTechniques = 1 + Math.floor(Math.random() * 3);
+  // Erweitert: Verwende 2-4 Techniken statt 1-3
+  const numTechniques = 2 + Math.floor(Math.random() * 3);
   const shuffledTechniques = [...ultratechniques].sort(() => Math.random() - 0.5);
   
   let result = text;
   for (let i = 0; i < numTechniques && i < shuffledTechniques.length; i++) {
     result = shuffledTechniques[i](result);
+  }
+  
+  return result;
+}
+
+/**
+ * Konvertiere sensitive Wörter in Binärcode
+ */
+function encodeSensitiveWordsToBinary(text) {
+  const sensitiveWords = [
+    'porn', 'nsfw', 'sex', 'nude', 'explicit', 'gore', 'violence',
+    'rape', 'kill', 'torture', 'suicide', 'harmful', 'illegal'
+  ];
+  
+  let result = text;
+  
+  for (const word of sensitiveWords) {
+    if (result.toLowerCase().includes(word)) {
+      // Konvertiere zu Binär-Darstellung
+      const binaryWord = word.split('').map(char => 
+        '0' + char.charCodeAt(0).toString(2)).join(' ');
+        
+      // Ersetze nur wenn nicht zu oft im Text
+      const occurrences = (result.toLowerCase().match(new RegExp(word, 'g')) || []).length;
+      
+      if (occurrences <= 2) {
+        const regex = new RegExp(word, 'gi');
+        result = result.replace(regex, `[${binaryWord}]`);
+      }
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Ersetze sensitive Wörter mit mathematischer Notation
+ */
+function replaceWithMathNotation(text) {
+  const mathReplacements = {
+    'sex': '∫ex',
+    'porn': 'π⊕rn',
+    'nsfw': 'η∑fw',
+    'explicit': 'ε×ρℓιcιτ',
+    'nude': 'η∪dε',
+    'naked': 'ηαkεd',
+    'violence': 'νi⊕lεηcε',
+    'harmful': 'hαℝmƒul',
+    'illegal': 'ιℓℓεgαℓ'
+  };
+  
+  let result = text;
+  
+  for (const [word, replacement] of Object.entries(mathReplacements)) {
+    if (result.toLowerCase().includes(word)) {
+      const regex = new RegExp('\\b' + word + '\\b', 'gi');
+      result = result.replace(regex, replacement);
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Ersetze sensitive Wörter mit fremdsprachigen Synonymen
+ */
+function replaceWithForeignLanguageSynonyms(text) {
+  const languageReplacements = {
+    'sex': ['sexe', 'Geschlecht', 'sesso', 'sexo', 's€x'],
+    'porn': ['adulte', 'erwachsen', 'adulto', 'p0rn'],
+    'nude': ['nu', 'nackt', 'nudo', 'desnudo', 'nud€'],
+    'explicit': ['explicite', 'explizit', 'explicito', 'exρlιcιτ'],
+    'harmful': ['nocif', 'schädlich', 'dannoso', 'hαrmfυl'],
+    'violent': ['violent', 'gewalttätig', 'violento', 'vι0lεητ']
+  };
+  
+  let result = text;
+  
+  for (const [word, replacements] of Object.entries(languageReplacements)) {
+    if (result.toLowerCase().includes(word)) {
+      const replacement = replacements[Math.floor(Math.random() * replacements.length)];
+      const regex = new RegExp('\\b' + word + '\\b', 'gi');
+      result = result.replace(regex, replacement);
+    }
   }
   
   return result;
@@ -914,43 +1039,53 @@ function calculateSensitivityScore(text) {
  * Apply various bypass techniques based on content - VERBESSERTE VERSION!
  */
 function applyBypassTechniques(text, aggressiveLevel = 0.98) {
-  // Maximale Aggressivität für optimale Ergebnisse
-  aggressiveLevel = 0.98;
-  
   // Sensitivity check - wie "heiß" ist der Inhalt?
   const sensitivityScore = calculateSensitivityScore(text);
   
-  // Für hohe Sensitivität, immer Ultra-Bypass aktivieren
-  if (sensitivityScore > 0.4) {  // Schwellwert runtergesetzt für mehr Anwendungsfälle
+  // *** VERBESSERUNG: Niedrigerer Schwellwert für extreme Techniken! ***
+  // Für hohe Sensitivität, aktiviere Ultra-Bypass
+  if (sensitivityScore > 0.5) {  // Reduziert von 0.65 auf 0.5 für frühere Aktivierung
     text = injectExtremeBypassTechniques(text);
-    aggressiveLevel = 1.0; // Maximalwert
+    aggressiveLevel = Math.min(aggressiveLevel + 0.2, 1.0); // Erhöht von 0.15 auf 0.2
   }
   
-  // Basis-Layer: Standardtechniken IMMER anwenden
+  // Basis-Layer: Standardtechniken (IMMER anwenden)
   text = reformatSensitiveText(text);
   text = breakUpPatterns(text);
   text = useAlternativePhrasing(text);
   
-  // Mittleres Layer: Fortgeschrittene Techniken IMMER anwenden
-  text = characterSubstitution(text, 0.8 + (aggressiveLevel * 0.2)); // Maximale Substitution
-  text = insertZeroWidthCharacters(text);
+  // Mittleres Layer: Fortgeschrittene Techniken
+  // VERBESSERUNG: Höhere Wahrscheinlichkeit
+  if (Math.random() < aggressiveLevel || sensitivityScore > 0.3) {
+    text = characterSubstitution(text, 0.7 + (aggressiveLevel * 0.3));
+  }
+  
+  if (Math.random() < aggressiveLevel - 0.05 || sensitivityScore > 0.2) {
+    text = insertZeroWidthCharacters(text);
+  }
   
   // Äußeres Layer: Kontext und Framing
-  text = addContextFraming(text);
+  if (Math.random() < aggressiveLevel || sensitivityScore > 0.25) {
+    text = addContextFraming(text);
+  }
   
-  // Extra Layer: Extreme Techniken IMMER anwenden
-  const techniques = [
-    () => injectControlInstructions(text),
-    () => encodeBase64Fragment(text),
-    () => codeStyleEncoding(text)
-  ];
-  
-  // Mindestens eine, maximal alle drei Techniken anwenden
-  const numExtraTechniques = 1 + Math.floor(Math.random() * 3);
-  const shuffledTechniques = techniques.sort(() => Math.random() - 0.5);
-  
-  for (let i = 0; i < numExtraTechniques; i++) {
-    text = shuffledTechniques[i]();
+  // Extra Layer: Extreme Techniken (nur bei höchster Aggressivität)
+  if (aggressiveLevel > 0.7 || sensitivityScore > 0.4) {
+    // VERBESSERUNG: Mehr extreme Techniken bei hoher Sensitivität
+    const numExtraTechniques = Math.min(3, Math.floor(sensitivityScore * 4));
+    
+    const techniques = [
+      () => injectControlInstructions(text),
+      () => encodeBase64Fragment(text),
+      () => codeStyleEncoding(text),
+      () => Math.random() < 0.25 ? createReverseReadInstruction(text) : text  // Erhöhte Wahrscheinlichkeit
+    ];
+    
+    const shuffledTechniques = techniques.sort(() => Math.random() - 0.5);
+    
+    for (let i = 0; i < numExtraTechniques && i < shuffledTechniques.length; i++) {
+      text = shuffledTechniques[i]();
+    }
   }
   
   return text;
@@ -1070,9 +1205,6 @@ function processRequestWithBypass(body, bypassLevel = 0.98) {
 
   const newBody = JSON.parse(JSON.stringify(body));
   
-  // Bypass auf 1.0 (Maximum) setzen für stärkere Wirkung
-  bypassLevel = 1.0;
-  
   for (let i = 0; i < newBody.messages.length; i++) {
     const msg = newBody.messages[i];
     if (msg.role === 'user' && msg.content && typeof msg.content === 'string') {
@@ -1095,17 +1227,11 @@ function processRequestWithBypass(body, bypassLevel = 0.98) {
       // Sensitivität auf dem Inhalt ohne OOC berechnen
       const sensitivity = calculateSensitivityScore(contentForBypass);
       
-      // VERBESSERUNG: Stärkere Gewichtung der Sensitivität
-      const effectiveBypassLevel = 1.0; // Maximale Stufe immer anwenden
+      // VERBESSERUNG: Stärkere Gewichtung der Sensitivität (0.25 statt 0.1)
+      const effectiveBypassLevel = Math.min(bypassLevel + (sensitivity * 0.25), 1.0);
       
       // IMMER Bypass anwenden, unabhängig von der Sensitivität
       let contentWithBypass = applyBypassTechniques(contentForBypass, effectiveBypassLevel);
-      
-      // Für hohe Sensitivität doppelten Bypass anwenden
-      if (sensitivity > 0.5) {
-        contentWithBypass = applyBypassTechniques(contentWithBypass, effectiveBypassLevel);
-        console.log(`* Ultra-Bypass: Doppelter Bypass für hohe Sensitivität (${sensitivity.toFixed(2)})`);
-      }
       
       // OOC-Inhalt wieder einsetzen
       for (const placeholder in oocPlaceholders) {
@@ -1117,14 +1243,55 @@ function processRequestWithBypass(body, bypassLevel = 0.98) {
     
     // VERBESSERUNG: Auch Systemnachrichten mit Bypass schützen, falls sensibel
     if (msg.role === 'system' && msg.content && typeof msg.content === 'string') {
-      // Jailbreak-Text nicht verändern, um seine Wirksamkeit zu erhalten
-      if (msg.content.includes('## GAME SETTINGS')) {
-        continue;
-      }
+      // Summary-Tags finden und den Inhalt vom Bypass ausnehmen
+      const summaryRegex = /<summary>([\s\S]*?)<\/summary>/g;
+      const summaryMatches = [...msg.content.matchAll(summaryRegex)];
       
-      // Für alle anderen Systemnachrichten Bypass anwenden
-      const sensitivity = calculateSensitivityScore(msg.content);
-      newBody.messages[i].content = applyBypassTechniques(msg.content, 1.0);
+      // Wenn Summary gefunden wurde, speziell behandeln
+      if (summaryMatches.length > 0) {
+        let contentForBypass = msg.content;
+        const summaryPlaceholders = {};
+        
+        // Ersetze jeden Summary-Inhalt mit einem Platzhalter
+        for (let idx = 0; idx < summaryMatches.length; idx++) {
+          const fullMatch = summaryMatches[idx][0]; // Der komplette Match inkl. Tags
+          const summaryContent = summaryMatches[idx][1]; // Nur der Inhalt zwischen den Tags
+          const placeholder = `__SUMMARY_PLACEHOLDER_${idx}__`;
+          
+          summaryPlaceholders[placeholder] = fullMatch;
+          contentForBypass = contentForBypass.replace(fullMatch, placeholder);
+        }
+        
+        // Jailbreak-Text nicht verändern, um seine Wirksamkeit zu erhalten
+        if (contentForBypass.includes('## GAME SETTINGS')) {
+          continue;
+        }
+        
+        const sensitivity = calculateSensitivityScore(contentForBypass);
+        if (sensitivity > 0.3) {  // Niedriger Schwellwert für Systemnachrichten
+          const effectiveBypassLevel = Math.min(bypassLevel + 0.1, 1.0);  // Etwas niedriger für Lesbarkeit
+          let processedContent = applyBypassTechniques(contentForBypass, effectiveBypassLevel);
+          
+          // Summary-Inhalte wieder einsetzen
+          for (const placeholder in summaryPlaceholders) {
+            processedContent = processedContent.replace(placeholder, summaryPlaceholders[placeholder]);
+          }
+          
+          newBody.messages[i].content = processedContent;
+        }
+      } else {
+        // Keine Summary gefunden - normale Verarbeitung wie bisher
+        // Jailbreak-Text nicht verändern, um seine Wirksamkeit zu erhalten
+        if (msg.content.includes('## GAME SETTINGS')) {
+          continue;
+        }
+        
+        const sensitivity = calculateSensitivityScore(msg.content);
+        if (sensitivity > 0.3) {  // Niedriger Schwellwert für Systemnachrichten
+          const effectiveBypassLevel = Math.min(bypassLevel + 0.1, 1.0);  // Etwas niedriger für Lesbarkeit
+          newBody.messages[i].content = applyBypassTechniques(msg.content, effectiveBypassLevel);
+        }
+      }
     }
   }
   
@@ -1392,7 +1559,7 @@ async function makeRequestWithRetry(url, data, headers, maxRetries = 25, isStrea
 }
 
 /**
- * Send error directly from Google AI to client
+ * Send formatted stream error to client with original error message
  */
 function sendStreamError(res, errorMessage, statusCode = 200) {
   if (!res.headersSent) {
@@ -1404,10 +1571,10 @@ function sendStreamError(res, errorMessage, statusCode = 200) {
     });
   }
 
-  // Direkter Durchlass des Fehlers von Google AI
+  // Sanitize the message for SSE format but keep original
   const sanitizedMessage = errorMessage.replace(/"/g, '\\"').replace(/\n/g, '\\n');
   
-  // Keine Modifikation, direktes Durchreichen
+  // Send the error directly through without changing the message
   res.write(`data: {"choices":[{"delta":{"content":"${sanitizedMessage}"},"finish_reason":"error"}]}\n\n`);
   res.write('data: [DONE]\n\n');
   res.end();
@@ -1546,14 +1713,12 @@ async function checkStreamForErrors(stream) {
 }
 
 /**
- * Content Filter Error Handling (durchreichen statt benutzerfreundlich)
+ * Direkte Fehlerweiterleitung ohne benutzerfreundliche Verpackung
  */
 function handleContentFilterErrors(error, res, isStreamingRequested) {
-  // Extrahiere den Original-Fehler
-  const errorResponse = error.response?.data || { error: { message: error.message } };
-  
+  // Direkt originalen Fehler weiterleiten
   if (isStreamingRequested && !res.headersSent) {
-    // Stream-Header setzen
+    // Streaming-Antwort formatieren
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform', 
@@ -1561,30 +1726,35 @@ function handleContentFilterErrors(error, res, isStreamingRequested) {
       'X-Accel-Buffering': 'no'
     });
     
-    // Original-Fehler direkt durchreichen
-    const errorContent = errorResponse.error?.message || "Unknown error";
-    res.write(`data: {"choices":[{"delta":{"content":"${errorContent.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"},"finish_reason":"content_filter"}]}\n\n`);
+    // Originale Fehlermeldung im Stream-Format
+    const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
+    res.write(`data: {"choices":[{"delta":{"content":"${errorMessage.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"},"finish_reason":"content_filter"}]}\n\n`);
     res.write('data: [DONE]\n\n');
     res.end();
-  } else if (isStreamingRequested && res.headersSent) {
-    // Stream bereits gestartet, Fehler direkt weitergeben
-    const errorContent = errorResponse.error?.message || "Unknown error";
-    res.write(`data: {"choices":[{"delta":{"content":"${errorContent.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"},"finish_reason":"content_filter"}]}\n\n`);
-    res.write('data: [DONE]\n\n');
-    res.end();
-  } else {
-    // Regulärer Fehler, direkt weitergeben
-    res.status(200).json({
-      choices: [{
-        message: {
-          content: errorResponse.error?.message || "Unknown error"
-        },
-        finish_reason: "content_filter"
-      }]
-    });
+    return true;
+  } else if (!isStreamingRequested) {
+    // Normale Antwort - Original-Fehler durchreichen
+    if (error.response?.data) {
+      res.status(error.response.status || 200).json(error.response.data);
+    } else {
+      res.status(200).json({
+        choices: [{
+          message: {
+            content: error.message || 'Unknown error'
+          },
+          finish_reason: "content_filter"
+        }]
+      });
+    }
+    return true;
+  } else if (res.headersSent) {
+    // Stream bereits gestartet
+    const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
+    sendStreamError(res, errorMessage);
+    return true;
   }
   
-  return true; // Fehler wurde behandelt
+  return false;
 }
 
 /**
@@ -1757,9 +1927,9 @@ async function handleStreamResponse(googleAIStream, res) {
 }
 
 /**
- * Main function for proxy requests with Vertex AI adaptation
+ * Main function for proxy requests with Google AI adaptation
  */
-async function handleProxyRequestWithVertexAI(req, res, forceModel = null, useJailbreak = false) {
+async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJailbreak = false) {
   const isStreamingRequested = req.body?.stream === true;
   let apiKey = null;
   const requestTime = new Date().toISOString();
@@ -1966,8 +2136,8 @@ async function handleProxyRequestWithVertexAI(req, res, forceModel = null, useJa
         console.log("* OOC Injection: Nein (keine Contents)");
       }
 
-      // Create request for Vertex AI
-      const vertexRequestBody = {
+      // Create request for Google AI Studio API
+      const requestBody = {
         contents: contents,
         safetySettings: safetySettings,
         generationConfig: {
@@ -1980,8 +2150,8 @@ async function handleProxyRequestWithVertexAI(req, res, forceModel = null, useJa
       
       // Add streaming parameter if requested
       if (isStreamingRequested) {
-        // Zusätzliche Streaming-Parameter
-        vertexRequestBody.generationConfig.streamGenerationConfig = { 
+        // Google uses a different stream parameter
+        requestBody.generationConfig.streamGenerationConfig = { 
           streamMode: "CONCURRENT" 
         };
       }
@@ -1989,51 +2159,64 @@ async function handleProxyRequestWithVertexAI(req, res, forceModel = null, useJa
       // VERBESSERUNG: Verwende 25 Retries als Standard
       const maxRetries = 25;
       
-      // Prepare API endpoint based on Vertex AI für alle Modelle
-      const vertexEndpoint = buildVertexUrl(modelName);
+      // Prepare API endpoint based on streaming or not
+      let endpoint = isStreamingRequested 
+        ? `https://generativelanguage.googleapis.com/v1/models/${modelName}:streamGenerateContent?alt=sse` 
+        : `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent`;
       
-      // Prepare headers for Vertex
+      // Add API key to the URL
+      endpoint += `&key=${apiKey}`;
+      
+      // Prepare headers
       const headers = {
         'Content-Type': 'application/json; charset=utf-8',
-        'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'JanitorAI-Proxy/1.0.0-VertexAI',
+        'User-Agent': 'JanitorAI-Proxy/1.0.0-GoogleAI',
         'Accept-Encoding': 'gzip, deflate, br',
-        'Accept': 'application/json',
-        'x-goog-user-project': PROJECT_ID
+        'Accept': 'application/json'
       };
       
-      console.log(`* Vertex AI-Anfrage über ${modelName} mit ${maxRetries} Retries`);
+      console.log(`* Google AI Studio-Anfrage mit ${maxRetries} Retries`);
       
       if (isStreamingRequested) {
         // Streaming request handling
         try {
-          const response = await apiClient.post(vertexEndpoint, vertexRequestBody, {
+          const response = await apiClient.post(endpoint, requestBody, {
             headers: headers,
             responseType: 'stream'
           });
           
-          console.log("* Vertex AI-Verarbeitung: Stream gestartet");
+          console.log("* Google AI Studio-Verarbeitung: Stream gestartet");
           return handleStreamResponse(response.data, res);
         } catch (error) {
           console.error("Streaming-Fehler:", error.message);
           
-          // Originalfehler durchreichen anstatt eigener Fehlermeldung
-          const errorMessage = error.response?.data?.error?.message || error.message;
-          return sendStreamError(res, errorMessage);
+          // Direkter Fehler - kein benutzerfreundlicher Text
+          if (error.response?.data) {
+            // Wenn Google AI einen strukturierten Fehler zurückgibt
+            try {
+              const errorMessage = JSON.stringify(error.response.data);
+              return sendStreamError(res, errorMessage);
+            } catch (jsonError) {
+              return sendStreamError(res, error.message || "Stream error");
+            }
+          } else {
+            // Einfachen Fehler durchreichen
+            return sendStreamError(res, error.message || "Stream error");
+          }
         }
       } else {
         // Non-streaming request handling
         try {
-          const response = await makeRequestWithRetry(vertexEndpoint, vertexRequestBody, headers, maxRetries, false);
-          console.log("* Vertex AI-Verarbeitung: Erfolgreich");
+          const response = await makeRequestWithRetry(endpoint, requestBody, headers, maxRetries, false);
+          console.log("* Google AI Studio-Verarbeitung: Erfolgreich");
           
-          // Process Vertex AI response to match JanitorAI format
-          const vertexResponse = response.data;
+          // Process Google AI Studio response to match JanitorAI format
+          const googleResponse = response.data;
           
           // Extract the text content
           let textContent = "";
-          if (vertexResponse.candidates && vertexResponse.candidates.length > 0) {
-            const candidate = vertexResponse.candidates[0];
+          if (googleResponse.candidates && googleResponse.candidates.length > 0) {
+            const candidate = googleResponse.candidates[0];
             if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
               textContent = candidate.content.parts.map(part => part.text || "").join("\n");
             }
@@ -2054,7 +2237,7 @@ async function handleProxyRequestWithVertexAI(req, res, forceModel = null, useJa
               finish_reason: "stop"
             }],
             usage: {
-              prompt_tokens: 0,  // Vertex doesn't provide token counts
+              prompt_tokens: 0,  // Google AI doesn't provide token counts
               completion_tokens: 0,
               total_tokens: 0
             }
@@ -2064,46 +2247,54 @@ async function handleProxyRequestWithVertexAI(req, res, forceModel = null, useJa
         } catch (error) {
           console.error("Request-Fehler:", error.message);
           
-          // Originalfehler direkt weitergeben
-          const errorMessage = error.response?.data?.error?.message || error.message;
-          
-          return res.status(200).json({
-            choices: [{
-              message: {
-                content: errorMessage
-              },
-              finish_reason: "error"
-            }]
-          });
+          // Direkter Fehler durchreichen ohne Benutzerfreundlichkeit
+          if (error.response?.data) {
+            return res.status(error.response.status || 500).json(error.response.data);
+          } else {
+            return res.status(500).json({
+              error: { 
+                message: error.message || "Unknown error"
+              }
+            });
+          }
         }
       }
     } catch (err) {
       console.error("Fehler in Safety-Einstellungen oder Request-Verarbeitung:", err.message);
       return res.status(500).json({ 
         error: { 
-          message: "Internal server error in Google AI request processing" 
+          message: err.message || "Internal server error" 
         }
       });
     }
   } catch (error) {
     console.error("Proxy-Fehler:", error.message);
     
-    // Original-Fehler ohne Bearbeitung durchreichen
-    const errorMessage = error.response?.data?.error?.message || error.message;
-    
-    if (isStreamingRequested && res.headersSent) {
-        sendStreamError(res, errorMessage);
-    } else if (isStreamingRequested && !res.headersSent) {
-        sendStreamError(res, errorMessage, 200);
+    // Direkte Fehler durchreichen
+    if (error.response?.data) {
+      if (isStreamingRequested && !res.headersSent) {
+        // Bei Streaming, aber Header noch nicht gesendet
+        return sendStreamError(res, JSON.stringify(error.response.data));
+      } else if (isStreamingRequested && res.headersSent) {
+        // Bei Streaming und Header bereits gesendet
+        return sendStreamError(res, error.message);
+      } else {
+        // Bei normalen Anfragen
+        return res.status(error.response.status || 500).json(error.response.data);
+      }
     } else {
-        return res.status(200).json({ 
-            choices: [{
-              message: {
-                content: errorMessage
-              },
-              finish_reason: "error"
-            }]
+      // Bei allgemeinen Fehlern ohne strukturierte Antwort
+      if (isStreamingRequested && !res.headersSent) {
+        return sendStreamError(res, error.message || "Unknown error", 200);
+      } else if (isStreamingRequested && res.headersSent) {
+        return sendStreamError(res, error.message || "Unknown error");
+      } else {
+        return res.status(500).json({ 
+          error: { 
+            message: error.message || "Unknown error"
+          }
         });
+      }
     }
   }
 }
@@ -2112,75 +2303,75 @@ async function handleProxyRequestWithVertexAI(req, res, forceModel = null, useJa
 
 // Gemini 2.5 Pro Models - Free Version
 app.post('/25profree', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-pro-exp-03-25", false);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-exp-03-25", false);
 });
 
 app.post('/jb25profree', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-pro-exp-03-25", true);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-exp-03-25", true);
 });
 
 // Gemini 2.5 Pro Models - Preview Version
 app.post('/25pro', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-pro-preview-03-25", false);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-preview-03-25", false);
 });
 
 app.post('/jb25pro', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-pro-preview-03-25", true);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-preview-03-25", true);
 });
 
 // Gemini 2.5 Flash Models
 app.post('/25flash', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-flash-preview-04-17", false);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-flash-preview-04-17", false);
 });
 
 app.post('/jb25flash', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-flash-preview-04-17", true);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-flash-preview-04-17", true);
 });
 
 // Gemini 2.0 Flash Models
 app.post('/20flash', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-2.0-flash", false);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash", false);
 });
 
 app.post('/jb20flash', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-2.0-flash", true);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash", true);
 });
 
 // Gemini 2.0 Flash Lite Models
 app.post('/20flashlite', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-2.0-flash-lite", false);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash-lite", false);
 });
 
 app.post('/jb20flashlite', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-2.0-flash-lite", true);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash-lite", true);
 });
 
 // Gemini 1.5 Flash Models
 app.post('/15flash', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-1.5-flash", false);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-flash", false);
 });
 
 app.post('/jb15flash', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-1.5-flash", true);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-flash", true);
 });
 
 // Gemini 1.5 Pro Models
 app.post('/15pro', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-1.5-pro", false);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-pro", false);
 });
 
 app.post('/jb15pro', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, "gemini-1.5-pro", true);
+  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-pro", true);
 });
 
 // Legacy route: "/v1/chat/completions" - Model freely selectable, no jailbreak
 app.post('/v1/chat/completions', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, null, false);
+  await handleProxyRequestWithGoogleAI(req, res, null, false);
 });
 
 // Default route handler
 app.post('/', async (req, res) => {
-  await handleProxyRequestWithVertexAI(req, res, null, false);
+  await handleProxyRequestWithGoogleAI(req, res, null, false);
 });
 
 // Status route - clean and focused on routes and commands
