@@ -1462,22 +1462,22 @@ async function makeRequestWithRetry(url, data, headers, maxRetries = 25, isStrea
 
 /**
  * Send formatted stream error to client
- * Improved version with OpenAI-compatible error format
+ * Passes through the original error message
  */
 function sendStreamError(res, errorMessage, statusCode = 200) {
   if (!res.headersSent) {
     res.writeHead(statusCode, {
-      'Content-Type': 'text/event-stream; charset=utf-8', // VERBESSERUNG: UTF-8 explizit angeben
+      'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no' // VERBESSERUNG: Verhindert Puffer in Proxy-Servern
+      'X-Accel-Buffering': 'no'
     });
   }
 
   // Sanitize the message for SSE format
   const sanitizedMessage = errorMessage.replace(/"/g, '\\"').replace(/\n/g, '\\n');
   
-  // Send the error in OpenAI-compatible format that Janitor understands better
+  // Send the error in OpenAI-compatible format for Janitor
   res.write(`data: {"choices":[{"delta":{"content":"${sanitizedMessage}"},"finish_reason":"error"}]}\n\n`);
   res.write('data: [DONE]\n\n');
   res.end();
@@ -1616,67 +1616,49 @@ async function checkStreamForErrors(stream) {
 }
 
 /**
- * Verbesserte Fehlerbehandlung speziell für Content-Filter-Fehler
+ * Verbesserte Fehlerbehandlung speziell für Content-Filter-Fehler - DURCHREICHEN DER ORIGINAL-FEHLERMELDUNGEN
  */
 function handleContentFilterErrors(error, res, isStreamingRequested) {
-  // Prüfen auf spezifische Filter-Fehlermeldungen
-  const errorMessage = (error.response?.data?.error?.message || error.message || '').toLowerCase();
-  const errorCode = error.response?.data?.error?.code || '';
-  const status = error.response?.status || 0;
-  
-  const knownContentFilterPatterns = [
-    'content policy', 'content filter', 'prohibited_content', 'content_filter',
-    'safety settings', 'policy', 'nsfw', 'inappropriate', 'mature', 
-    'blocked_reason', 'prompt rejected', 'violating', 'not appropriate', 'sexually explicit',
-    'violent content', 'harmful content', 'safety_ratings'
-  ];
-  
-  const isContentFilterError = 
-    status === 403 || 
-    knownContentFilterPatterns.some(pattern => errorMessage.includes(pattern)) ||
-    ['content_policy_violation', 'prohibited_content', 'unsafe_content', 'SAFETY'].includes(errorCode);
-  
-  if (isContentFilterError) {
-    console.log(`Content Filter erkannt: ${errorMessage.substring(0, 50)}...`);
+  // Fehler direkt durchreichen - keine benutzerfreundlichen Nachrichten mehr
+  if (isStreamingRequested && !res.headersSent) {
+    // Streaming-Antwort
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform', 
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no'
+    });
     
-    // Benutzerfreundliche Antwort, die auf das Problem und potentielle Lösungen hinweist
-    const userResponse = {
+    const originalError = error.response?.data?.error?.message || error.message || 'Unknown error';
+    const errorData = {
       choices: [{
-        message: {
-          content: "Google Gemini hat deine Anfrage gefiltert. Das passiert häufig beim Free-Modell trotz Bypass-Techniken. Probiere eine der folgenden Lösungen:\n\n1. Formuliere deine Anfrage subtiler oder nutze alternative Begriffe\n2. Verwende ein anderes Modell\n3. Wenn möglich, nutze stattdessen Flash-Modelle (haben manchmal weniger strenge Filter)\n\nDie Fehlermeldung lautete: 'Content filtered'"
-        },
+        delta: { content: originalError },
         finish_reason: "content_filter"
       }]
     };
     
-    if (isStreamingRequested && !res.headersSent) {
-      // Streaming-Antwort formatieren mit UTF-8 Encoding
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream; charset=utf-8',
-        'Cache-Control': 'no-cache, no-transform', 
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no'
-      });
-      res.write(`data: ${JSON.stringify({
-        choices: [{
-          delta: { content: userResponse.choices[0].message.content },
-          finish_reason: "content_filter"
-        }]
-      })}\n\n`);
-      res.write('data: [DONE]\n\n');
-      res.end();
-    } else if (!isStreamingRequested) {
-      // Normale Antwort
-      res.status(200).json(userResponse);
-    } else if (res.headersSent) {
-      // Stream bereits gestartet
-      sendStreamError(res, userResponse.choices[0].message.content);
-    }
+    res.write(`data: ${JSON.stringify(errorData)}\n\n`);
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } else if (!isStreamingRequested) {
+    // Normale Antwort
+    const status = error.response?.status || 500;
+    const errorData = error.response?.data || { 
+      error: { 
+        message: error.message || 'Unknown error',
+        code: error.code || 'unknown_error'
+      } 
+    };
     
-    return true; // Fehler wurde behandelt
+    res.status(status).json(errorData);
+  } else if (res.headersSent) {
+    // Stream bereits gestartet
+    const originalError = error.response?.data?.error?.message || error.message || 'Unknown error';
+    res.write(`data: {"choices":[{"delta":{"content":"${originalError}"},"finish_reason":"error"}]}\n\n`);
+    res.write('data: [DONE]\n\n');
   }
   
-  return false; // Kein Content-Filter-Fehler
+  return true; // Fehler wurde durchgereicht
 }
 
 /**
@@ -2083,8 +2065,8 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
       
       // Prepare API endpoint based on streaming or not
       let endpoint = isStreamingRequested 
-        ? `https://generativelanguage.googleapis.com/v1/models/${modelName}:streamGenerateContent?alt=sse` 
-        : `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent`;
+        ? `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse` 
+        : `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
       
       // Add API key to the URL
       endpoint += `&key=${apiKey}`;
@@ -2118,7 +2100,7 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
           }
           
           // Handle other errors in streaming mode
-          return sendStreamError(res, error.message || "Stream error");
+          return sendStreamError(res, error.response?.data?.error?.message || error.message || "Stream error");
         }
       } else {
         // Non-streaming request handling
@@ -2163,20 +2145,16 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
         } catch (error) {
           console.error("Request-Fehler:", error.message);
           
-          // Handle content filter errors
-          if (handleContentFilterErrors(error, res, false)) {
-            return; // Fehler wurde behandelt
-          }
+          // Durchreichen des Original-Fehlers
+          const status = error.response?.status || 500;
+          const errorResponse = error.response?.data || {
+            error: {
+              message: error.message || 'Unknown error',
+              code: error.code || 'unknown_error'
+            }
+          };
           
-          // Return error response in JanitorAI format
-          return res.status(500).json({
-            choices: [{
-              message: {
-                content: `Error: ${error.message}`
-              },
-              finish_reason: "error"
-            }]
-          });
+          return res.status(status).json(errorResponse);
         }
       }
     } catch (err) {
@@ -2190,23 +2168,22 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
   } catch (error) {
     console.error("Proxy-Fehler:", error.message);
     
-    // Verbesserte Fehlerbehandlung für Content-Filter
-    if (handleContentFilterErrors(error, res, isStreamingRequested)) {
-      return; // Fehler wurde behandelt
-    }
+    // Direkte Fehlerweiterleitung
+    const status = error.response?.status || 500;
+    const errorResponse = error.response?.data || {
+      error: {
+        message: error.message,
+        code: error.code || 'unknown_error'
+      }
+    };
     
     // Standardfehlerbehandlung für andere Fehler
     if (isStreamingRequested && res.headersSent) {
-        sendStreamError(res, error.message);
+        sendStreamError(res, error.response?.data?.error?.message || error.message);
     } else if (isStreamingRequested && !res.headersSent) {
-        sendStreamError(res, error.message, 200);
+        sendStreamError(res, error.response?.data?.error?.message || error.message, status);
     } else {
-        return res.status(200).json({ 
-            error: { 
-                message: error.message, 
-                code: error.code || 'unknown_error'
-            }
-        });
+        return res.status(status).json(errorResponse);
     }
   }
 }
