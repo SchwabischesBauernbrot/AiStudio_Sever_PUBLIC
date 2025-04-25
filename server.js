@@ -1984,7 +1984,7 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
             // Add immediate model response to acknowledge system instruction
             contents.push({
               role: 'model',
-              parts: [{ text: 'I'll follow these system instructions.' }]
+              parts: [{ text: "I'll follow these system instructions." }]
             });
           } else if (msg.role === 'user') {
             contents.push({
