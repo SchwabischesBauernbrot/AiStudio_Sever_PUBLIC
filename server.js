@@ -1757,9 +1757,9 @@ async function handleStreamResponse(googleAIStream, res) {
 }
 
 /**
- * Main function for proxy requests with Google AI adaptation
+ * Main function for proxy requests with Vertex AI adaptation
  */
-async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJailbreak = false) {
+async function handleProxyRequestWithVertexAI(req, res, forceModel = null, useJailbreak = false) {
   const isStreamingRequested = req.body?.stream === true;
   let apiKey = null;
   const requestTime = new Date().toISOString();
@@ -1966,8 +1966,8 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
         console.log("* OOC Injection: Nein (keine Contents)");
       }
 
-      // Create request for Google AI Studio API
-      const requestBody = {
+      // Create request for Vertex AI
+      const vertexRequestBody = {
         contents: contents,
         safetySettings: safetySettings,
         generationConfig: {
@@ -1980,8 +1980,8 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
       
       // Add streaming parameter if requested
       if (isStreamingRequested) {
-        // Google uses a different stream parameter
-        requestBody.generationConfig.streamGenerationConfig = { 
+        // Zusätzliche Streaming-Parameter
+        vertexRequestBody.generationConfig.streamGenerationConfig = { 
           streamMode: "CONCURRENT" 
         };
       }
@@ -1989,33 +1989,30 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
       // VERBESSERUNG: Verwende 25 Retries als Standard
       const maxRetries = 25;
       
-      // Prepare API endpoint based on streaming or not
-      let endpoint = isStreamingRequested 
-        ? `https://generativelanguage.googleapis.com/v1/models/${modelName}:streamGenerateContent?alt=sse` 
-        : `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent`;
+      // Prepare API endpoint based on Vertex AI für alle Modelle
+      const vertexEndpoint = buildVertexUrl(modelName);
       
-      // Add API key to the URL
-      endpoint += `&key=${apiKey}`;
-      
-      // Prepare headers
+      // Prepare headers for Vertex
       const headers = {
         'Content-Type': 'application/json; charset=utf-8',
-        'User-Agent': 'JanitorAI-Proxy/1.0.0-GoogleAI',
+        'Authorization': `Bearer ${apiKey}`,
+        'User-Agent': 'JanitorAI-Proxy/1.0.0-VertexAI',
         'Accept-Encoding': 'gzip, deflate, br',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'x-goog-user-project': PROJECT_ID
       };
       
-      console.log(`* Google AI Studio-Anfrage mit ${maxRetries} Retries`);
+      console.log(`* Vertex AI-Anfrage über ${modelName} mit ${maxRetries} Retries`);
       
       if (isStreamingRequested) {
         // Streaming request handling
         try {
-          const response = await apiClient.post(endpoint, requestBody, {
+          const response = await apiClient.post(vertexEndpoint, vertexRequestBody, {
             headers: headers,
             responseType: 'stream'
           });
           
-          console.log("* Google AI Studio-Verarbeitung: Stream gestartet");
+          console.log("* Vertex AI-Verarbeitung: Stream gestartet");
           return handleStreamResponse(response.data, res);
         } catch (error) {
           console.error("Streaming-Fehler:", error.message);
@@ -2027,16 +2024,16 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
       } else {
         // Non-streaming request handling
         try {
-          const response = await makeRequestWithRetry(endpoint, requestBody, headers, maxRetries, false);
-          console.log("* Google AI Studio-Verarbeitung: Erfolgreich");
+          const response = await makeRequestWithRetry(vertexEndpoint, vertexRequestBody, headers, maxRetries, false);
+          console.log("* Vertex AI-Verarbeitung: Erfolgreich");
           
-          // Process Google AI Studio response to match JanitorAI format
-          const googleResponse = response.data;
+          // Process Vertex AI response to match JanitorAI format
+          const vertexResponse = response.data;
           
           // Extract the text content
           let textContent = "";
-          if (googleResponse.candidates && googleResponse.candidates.length > 0) {
-            const candidate = googleResponse.candidates[0];
+          if (vertexResponse.candidates && vertexResponse.candidates.length > 0) {
+            const candidate = vertexResponse.candidates[0];
             if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
               textContent = candidate.content.parts.map(part => part.text || "").join("\n");
             }
@@ -2057,7 +2054,7 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
               finish_reason: "stop"
             }],
             usage: {
-              prompt_tokens: 0,  // Google AI doesn't provide token counts
+              prompt_tokens: 0,  // Vertex doesn't provide token counts
               completion_tokens: 0,
               total_tokens: 0
             }
@@ -2115,75 +2112,75 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
 
 // Gemini 2.5 Pro Models - Free Version
 app.post('/25profree', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-exp-03-25", false);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-pro-exp-03-25", false);
 });
 
 app.post('/jb25profree', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-exp-03-25", true);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-pro-exp-03-25", true);
 });
 
 // Gemini 2.5 Pro Models - Preview Version
 app.post('/25pro', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-preview-03-25", false);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-pro-preview-03-25", false);
 });
 
 app.post('/jb25pro', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-preview-03-25", true);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-pro-preview-03-25", true);
 });
 
 // Gemini 2.5 Flash Models
 app.post('/25flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-flash-preview-04-17", false);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-flash-preview-04-17", false);
 });
 
 app.post('/jb25flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-flash-preview-04-17", true);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-2.5-flash-preview-04-17", true);
 });
 
 // Gemini 2.0 Flash Models
 app.post('/20flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash", false);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-2.0-flash", false);
 });
 
 app.post('/jb20flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash", true);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-2.0-flash", true);
 });
 
 // Gemini 2.0 Flash Lite Models
 app.post('/20flashlite', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash-lite", false);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-2.0-flash-lite", false);
 });
 
 app.post('/jb20flashlite', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash-lite", true);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-2.0-flash-lite", true);
 });
 
 // Gemini 1.5 Flash Models
 app.post('/15flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-flash", false);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-1.5-flash", false);
 });
 
 app.post('/jb15flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-flash", true);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-1.5-flash", true);
 });
 
 // Gemini 1.5 Pro Models
 app.post('/15pro', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-pro", false);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-1.5-pro", false);
 });
 
 app.post('/jb15pro', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-pro", true);
+  await handleProxyRequestWithVertexAI(req, res, "gemini-1.5-pro", true);
 });
 
 // Legacy route: "/v1/chat/completions" - Model freely selectable, no jailbreak
 app.post('/v1/chat/completions', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, null, false);
+  await handleProxyRequestWithVertexAI(req, res, null, false);
 });
 
 // Default route handler
 app.post('/', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, null, false);
+  await handleProxyRequestWithVertexAI(req, res, null, false);
 });
 
 // Status route - clean and focused on routes and commands
