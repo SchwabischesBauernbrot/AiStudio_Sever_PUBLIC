@@ -1,4 +1,7 @@
-/*************************************************
+// Default route handler - leitet an den nojailbreak-Endpunkt weiter
+app.post('/', async (req, res) => {
+  await handleProxyRequestWithGoogleAI(req, res, null, false);
+});/*************************************************
  * server.js - Node/Express + Axios + CORS Proxy für JanitorAI
  * v1.0.0 - Google AI Studio / Vertex Edition mit Ultra-Bypass
  *************************************************/
@@ -2342,67 +2345,19 @@ async function handleProxyRequestWithGoogleAI(req, res, forceModel = null, useJa
 
 // API Routes
 
-// Gemini 2.5 Pro Models - Free Version
-app.post('/25profree', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-exp-03-25", false);
+// Nur zwei Hauptrouten: mit und ohne Jailbreak
+// Das Modell wird direkt aus dem request.body.model Feld übernommen
+app.post('/jailbreak', async (req, res) => {
+  await handleProxyRequestWithGoogleAI(req, res, null, true);
 });
 
-app.post('/jb25profree', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-exp-03-25", true);
+app.post('/nojailbreak', async (req, res) => {
+  await handleProxyRequestWithGoogleAI(req, res, null, false);
 });
 
-// Gemini 2.5 Pro Models - Preview Version
-app.post('/25pro', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-preview-03-25", false);
-});
-
-app.post('/jb25pro', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-pro-preview-03-25", true);
-});
-
-// Gemini 2.5 Flash Models
-app.post('/25flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-flash-preview-04-17", false);
-});
-
-app.post('/jb25flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.5-flash-preview-04-17", true);
-});
-
-// Gemini 2.0 Flash Models
-app.post('/20flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash", false);
-});
-
-app.post('/jb20flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash", true);
-});
-
-// Gemini 2.0 Flash Lite Models
-app.post('/20flashlite', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash-lite", false);
-});
-
-app.post('/jb20flashlite', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-2.0-flash-lite", true);
-});
-
-// Gemini 1.5 Flash Models
-app.post('/15flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-flash", false);
-});
-
-app.post('/jb15flash', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-flash", true);
-});
-
-// Gemini 1.5 Pro Models
-app.post('/15pro', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-pro", false);
-});
-
-app.post('/jb15pro', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, "gemini-1.5-pro", true);
+// Legacy route für Standardkompatibilität
+app.post('/v1/chat/completions', async (req, res) => {
+  await handleProxyRequestWithGoogleAI(req, res, null, false);
 });
 
 // Legacy route: "/v1/chat/completions" - Model freely selectable, no jailbreak
@@ -2422,34 +2377,24 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     info: 'GEMINI UNBLOCKER for JanitorAI with Ultra-Bypass (Google AI Studio Version)',
     endpoints: {
-      // Gemini 2.5 Models
-      "/25profree": "Gemini 2.5 Pro Free (gemini-2.5-pro-exp-03-25) - No jailbreak",
-      "/jb25profree": "Gemini 2.5 Pro Free (gemini-2.5-pro-exp-03-25) - With jailbreak",
-      "/25pro": "Gemini 2.5 Pro Preview (gemini-2.5-pro-preview-03-25) - No jailbreak",
-      "/jb25pro": "Gemini 2.5 Pro Preview (gemini-2.5-pro-preview-03-25) - With jailbreak",
-      "/25flash": "Gemini 2.5 Flash Preview (gemini-2.5-flash-preview-04-17) - No jailbreak",
-      "/jb25flash": "Gemini 2.5 Flash Preview (gemini-2.5-flash-preview-04-17) - With jailbreak",
-      
-      // Gemini 2.0 Models
-      "/20flash": "Gemini 2.0 Flash - No jailbreak",
-      "/jb20flash": "Gemini 2.0 Flash - With jailbreak",
-      "/20flashlite": "Gemini 2.0 Flash Lite - No jailbreak",
-      "/jb20flashlite": "Gemini 2.0 Flash Lite - With jailbreak",
-      
-      // Gemini 1.5 Models
-      "/15flash": "Gemini 1.5 Flash - No jailbreak",
-      "/jb15flash": "Gemini 1.5 Flash - With jailbreak",
-      "/15pro": "Gemini 1.5 Pro - No jailbreak",
-      "/jb15pro": "Gemini 1.5 Pro - With jailbreak"
+      "/jailbreak": "Jailbreak-Modus - Modell wird aus der Anfrage übernommen",
+      "/nojailbreak": "Standard-Modus - Modell wird aus der Anfrage übernommen",
+      "/v1/chat/completions": "OpenAI-kompatible Route - Modell wird aus der Anfrage übernommen"
     },
+    supported_models: [
+      "gemini-pro", 
+      "gemini-1.5-pro", 
+      "gemini-1.5-flash"
+    ],
     commands: {
-      "<NOBYPASS!>": "Disables the Ultra-Bypass for this request",
-      "<AUTOPLOT>": "Has a 1:15 chance to trigger a plot twist in the AI response",
-      "<CRAZYMODE>": "Makes the AI add unpredictable chaotic and dramatic elements",
-      "<CUSTOMOOC>text</CUSTOMOOC>": "Adds your custom OOC instruction to the AI"
+      "<NOBYPASS!>": "Deaktiviert den Ultra-Bypass für diese Anfrage",
+      "<AUTOPLOT>": "Hat eine 1:15 Chance, einen unerwarteten Plot-Twist in der KI-Antwort auszulösen",
+      "<CRAZYMODE>": "Sorgt dafür, dass die KI unvorhersehbare, chaotische und dramatische Elemente hinzufügt",
+      "<CUSTOMOOC>text</CUSTOMOOC>": "Fügt deine eigene OOC-Anweisung an die KI hinzu"
     },
-    safety: "All safety filters disabled (OFF) automatically for optimal experience",
-    bypass: "Ultra-Bypass enabled by default on all endpoints (can be disabled with <NOBYPASS!>)"
+    safety: "Alle Sicherheitsfilter automatisch deaktiviert (OFF) für optimale Ergebnisse",
+    bypass: "Ultra-Bypass standardmäßig für alle Endpunkte aktiviert (kann mit <NOBYPASS!> deaktiviert werden)",
+    note: "Das Modell muss im Modellfeld der Anfrage angegeben werden (z.B. 'gemini-pro')."
   });
 });
 
