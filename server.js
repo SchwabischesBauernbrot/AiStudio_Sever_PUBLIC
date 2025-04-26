@@ -1,7 +1,4 @@
-// Default route handler - leitet an den nojailbreak-Endpunkt weiter
-app.post('/', async (req, res) => {
-  await handleProxyRequestWithGoogleAI(req, res, null, false);
-});/*************************************************
+// Default route handler - leitet an den nojailbreak-Endpunkt weiter/*************************************************
  * server.js - Node/Express + Axios + CORS Proxy für JanitorAI
  * v1.0.0 - Google AI Studio / Vertex Edition mit Ultra-Bypass
  *************************************************/
