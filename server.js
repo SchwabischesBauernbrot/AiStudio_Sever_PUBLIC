@@ -981,16 +981,10 @@ async function makeRequestWithRetry(projectId, location, model, data, headers, a
         console.log(`Request to Vertex AI (attempt 1/${maxRetries + 1})`);
       }
       
-      // Build URL for Vertex AI
-      const fullUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:predict`;
+      // Build URL for Vertex AI with API key as query parameter
+      const fullUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:predict?key=${apiKey}`;
       
-      console.log(`* Vertex AI URL: ${fullUrl}`);
-      console.log(`* Authorization header set: ${apiKey ? 'Yes' : 'No'}`);
-      
-      const authHeaders = {
-        ...headers,
-        'Authorization': `Bearer ${apiKey}`
-      };
+      console.log(`* Vertex AI URL: ${fullUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
       
       if (isStream) {
         // For streaming we need to modify the request slightly
@@ -1005,7 +999,7 @@ async function makeRequestWithRetry(projectId, location, model, data, headers, a
         console.log("* Request parameters:", JSON.stringify(streamData.parameters, null, 2));
         
         const response = await axios.post(fullUrl, streamData, {
-          headers: authHeaders,
+          headers: headers,
           responseType: 'stream',
           responseEncoding: 'utf8',
         });
@@ -1015,7 +1009,7 @@ async function makeRequestWithRetry(projectId, location, model, data, headers, a
         console.log("* Request parameters:", JSON.stringify(data.parameters, null, 2));
         
         const response = await axios.post(fullUrl, data, {
-          headers: authHeaders,
+          headers: headers,
           responseEncoding: 'utf8',
         });
         
@@ -1031,8 +1025,7 @@ async function makeRequestWithRetry(projectId, location, model, data, headers, a
       // Add more detailed error logging especially for auth issues
       if (status === 401) {
         console.log(`Authentication error (401): ${errorMessage}`);
-        console.log("* Please check that your API key is valid and has the required permissions for Vertex AI");
-        console.log("* The API key must be a valid Google Cloud OAuth token for Vertex AI");
+        console.log("* Please check that your API key is valid for Vertex AI");
       } else {
         console.log(`Error: ${errorMessage} (${status})`);
       }
@@ -1328,7 +1321,7 @@ async function handleVertexAIRequest(req, res, useJailbreak = false) {
       if (error.response?.status === 401) {
         return res.status(401).json({
           error: {
-            message: "Authentication failed. Make sure to use a valid Google Cloud OAuth token (not API key). You need a service account with Vertex AI permissions.",
+            message: "Authentication failed. Make sure your API key is valid and has access to Vertex AI.",
             details: error.response.data?.error?.message || "Invalid authentication credentials",
             code: "authentication_failed"
           }
@@ -1368,8 +1361,7 @@ app.get('/', (req, res) => {
       "/nonjailbreak": "Vertex AI without jailbreak"
     },
     usage: "Include <PROJECTID>your-project-id</PROJECTID> in your request",
-    auth: "Use a valid Google Cloud OAuth token (not API key) in the Authorization header",
-    note: "For Vertex AI, you need a service account token with Vertex AI permissions",
+    auth: "Use your Vertex AI API key in the Authorization header",
     safety: "All safety filters disabled (OFF) automatically for optimal experience"
   });
 });
