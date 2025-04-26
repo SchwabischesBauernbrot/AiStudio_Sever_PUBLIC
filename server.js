@@ -1101,26 +1101,17 @@ async function handleStreamResponse(stream, res) {
   }
 }
 
-function convertToGeminiFormat(messages) {
-  let contents = [];
+function processMessages(messages) {
+  // Extract only the content from messages without roles
+  const parts = [];
   
   for (const msg of messages) {
-    // Convert roles appropriately - Google AI only accepts 'user' and 'model'
-    let role = "user";
-    if (msg.role === "assistant") {
-      role = "model";
-    } else if (msg.role === "system") {
-      role = "user";
+    if (msg.content && typeof msg.content === 'string') {
+      parts.push({ text: msg.content });
     }
-    
-    // Add this message's content to the contents array
-    contents.push({
-      role: role,
-      parts: [{ text: msg.content }]
-    });
   }
   
-  return contents;
+  return [{ parts }];
 }
 
 async function handleGeminiRequest(req, res, useJailbreak = false) {
@@ -1193,8 +1184,8 @@ async function handleGeminiRequest(req, res, useJailbreak = false) {
       }
     }
     
-    // Convert messages to Gemini format
-    const contents = convertToGeminiFormat(requestBody.messages);
+    // Process messages for Gemini format (no roles, just content)
+    const contents = processMessages(requestBody.messages);
     
     // Get safety settings for the model
     const safetySettings = getSafetySettings(model);
