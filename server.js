@@ -1,4 +1,22 @@
-/*************************************************
+// For Debug - Request und Response Body loggen
+function logObject(prefix, obj) {
+  try {
+    const sanitized = { ...obj };
+    
+    // Entferne sensible Daten, falls vorhanden
+    if (sanitized.headers && sanitized.headers.Authorization) {
+      sanitized.headers.Authorization = 'Bearer [REDACTED]';
+    }
+    
+    if (sanitized.headers && sanitized.headers['X-Goog-Api-Key']) {
+      sanitized.headers['X-Goog-Api-Key'] = '[REDACTED]';
+    }
+    
+    console.log(`${prefix}: ${JSON.stringify(sanitized, null, 2)}`);
+  } catch (e) {
+    console.log(`${prefix}: [Could not stringify object: ${e.message}]`);
+  }
+}/*************************************************
  * server.js - Node/Express + Axios + CORS Proxy für JanitorAI
  * Google AI Studios Proxy (Gemini)
  *************************************************/
@@ -926,6 +944,8 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
       
       const fullUrl = `https://generativelanguage.googleapis.com/v1beta/models/${data.model}:${endpoint}?${queryParams.toString()}`;
       
+      console.log(`* Request URL: ${fullUrl}`);
+      
       if (isStream) {
         const response = await axios.post(fullUrl, data, {
           headers,
@@ -948,6 +968,20 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
       const status = error.response?.status;
       const errorMessage = error.response?.data?.error?.message || error.message || '';
       const errorCode = error.response?.data?.error?.code || '';
+      
+      // Ausführlicheres Logging der Fehlerdetails
+      console.error(`* Error in attempt ${attempt + 1}:`);
+      console.error(`* Status code: ${status || 'Unknown'}`);
+      console.error(`* Error code: ${errorCode || 'Unknown'}`);
+      console.error(`* Error message: ${errorMessage}`);
+      
+      if (error.response?.data) {
+        try {
+          console.error("* Full error data:", JSON.stringify(error.response.data, null, 2));
+        } catch (e) {
+          console.error("* Error data available but cannot be stringified");
+        }
+      }
       
       const isRateLimitError = (
         status === 429 ||
@@ -1011,8 +1045,16 @@ function processStreamEvents(stream, res) {
     });
   }
   
+  console.log("* Stream processing started");
+  
   stream.on('data', (chunk) => {
     const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : chunk.toString();
+    
+    // Debug-Logging bei den ersten paar Chunks
+    if (buffer.length < 500) {
+      console.log(`* Stream chunk received: ${chunkStr.substring(0, 200)}${chunkStr.length > 200 ? '...' : ''}`);
+    }
+    
     buffer += chunkStr;
     
     // Process complete events
@@ -1034,17 +1076,28 @@ function processStreamEvents(stream, res) {
         const dataJson = eventStr.substring(6);
         
         if (dataJson === '[DONE]') {
+          console.log("* Stream [DONE] received");
           res.write('data: [DONE]\n\n');
         } else {
           try {
             const googleData = JSON.parse(dataJson);
+            
+            // Bei Fehlern in der Google-Antwort ausführlich loggen
+            if (googleData.error) {
+              console.error("* Error in Google Stream Response:");
+              console.error(JSON.stringify(googleData.error, null, 2));
+            }
+            
             const janitorData = convertToJanitorFormat(googleData, true);
             
             if (janitorData) {
               res.write(`data: ${JSON.stringify(janitorData)}\n\n`);
+            } else {
+              console.error("* Failed to convert Google data to Janitor format:", dataJson);
             }
           } catch (e) {
-            console.error('Error parsing stream data:', e.message);
+            console.error('* Error parsing stream data:', e.message);
+            console.error('* Raw data that failed to parse:', dataJson);
           }
         }
       }
@@ -1057,6 +1110,7 @@ function processStreamEvents(stream, res) {
   
   stream.on('end', () => {
     clearInterval(heartbeatInterval);
+    console.log("* Stream ended normally");
     if (!res.writableEnded) {
       res.write('data: [DONE]\n\n');
       res.end();
@@ -1065,7 +1119,12 @@ function processStreamEvents(stream, res) {
   
   stream.on('error', (error) => {
     clearInterval(heartbeatInterval);
-    console.error('Stream error:', error);
+    console.error('* Stream error:', error.message);
+    console.error('* Error stack:', error.stack);
+    if (error.response) {
+      console.error('* Response data:', JSON.stringify(error.response.data || {}, null, 2));
+    }
+    
     if (!res.writableEnded) {
       res.write(`data: {"error": {"message": "${error.message.replace(/"/g, '\\"')}"}}\n\n`);
       res.write('data: [DONE]\n\n');
@@ -1075,6 +1134,7 @@ function processStreamEvents(stream, res) {
   
   res.on('close', () => {
     clearInterval(heartbeatInterval);
+    console.log("* Stream connection closed by client");
     stream.destroy();
   });
 }
@@ -1206,6 +1266,7 @@ async function handleGoogleAIRequest(req, res, useJailbreak = false) {
         if (response && response.data && typeof response.data.pipe === 'function') {
           processStreamEvents(response.data, res);
         } else {
+          console.error("* ERROR: Invalid streaming response:", JSON.stringify(response?.data || "No data"));
           return res.status(500).json({ error: { message: "Invalid streaming response from Google AI Studios", code: "invalid_response" } });
         }
       } else {
@@ -1217,11 +1278,20 @@ async function handleGoogleAIRequest(req, res, useJailbreak = false) {
         if (janitorResponse) {
           return res.json(janitorResponse);
         } else {
+          console.error("* ERROR: Failed to convert response:", JSON.stringify(response?.data || "No data"));
           return res.status(500).json({ error: { message: "Failed to convert Google AI Studios response", code: "conversion_error" } });
         }
       }
     } catch (error) {
-      console.error("Error calling Google AI Studios:", error.message);
+      // Ausführlichere Fehlerprotokollierung
+      console.error("* ERROR calling Google AI Studios:");
+      console.error(`* Status: ${error.response?.status || 'Unknown'}`);
+      console.error(`* Error code: ${error.response?.data?.error?.code || error.code || 'Unknown'}`);
+      console.error(`* Error message: ${error.response?.data?.error?.message || error.message}`);
+      
+      if (error.response?.data?.error?.details) {
+        console.error("* Error details:", JSON.stringify(error.response.data.error.details, null, 2));
+      }
       
       // Pass through original error from Google AI Studios
       if (error.response?.data) {
@@ -1231,7 +1301,16 @@ async function handleGoogleAIRequest(req, res, useJailbreak = false) {
       }
     }
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("=== ERROR DETAILS ===");
+    console.error(`* Error: ${error.message}`);
+    console.error(`* Stack: ${error.stack?.split('\n')[0] || 'No stack'}`);
+    
+    if (error.response) {
+      console.error(`* Status: ${error.response.status}`);
+      console.error(`* Error data: ${JSON.stringify(error.response.data, null, 2)}`);
+      console.error(`* Headers: ${JSON.stringify(error.response.headers, null, 2)}`);
+    }
+    
     return res.status(500).json({ error: { message: error.message, code: "internal_server_error" } });
   }
 }
