@@ -1102,16 +1102,20 @@ async function handleStreamResponse(stream, res) {
 }
 
 function convertToGeminiFormat(messages) {
-  let role = "user";
   let contents = [];
   
   for (const msg of messages) {
-    // Track the last role we've seen to handle assistant/user pairs properly
-    role = msg.role;
+    // Convert roles appropriately - Google AI only accepts 'user' and 'model'
+    let role = "user";
+    if (msg.role === "assistant") {
+      role = "model";
+    } else if (msg.role === "system") {
+      role = "user";
+    }
     
-    // Add this message's content to the appropriate parts array
+    // Add this message's content to the contents array
     contents.push({
-      role: msg.role === "system" ? "user" : msg.role,
+      role: role,
       parts: [{ text: msg.content }]
     });
   }
