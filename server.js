@@ -846,9 +846,7 @@ function convertToGoogleAIFormat(messages) {
   return contents;
 }
 
-/**
- * Convert Vertex AI response to JanitorAI format
- */
+// Convert Vertex AI response to JanitorAI format
 function convertToJanitorFormat(vertexResponse, isStream = false) {
   if (isStream) {
     // Handle streaming response conversion
@@ -1028,9 +1026,7 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
   throw lastError || new Error("Maximum retries exceeded");
 }
 
-/**
- * Process stream events from Vertex AI
- */
+// Process stream events from Vertex AI
 function processStreamEvents(stream, res) {
   let buffer = '';
   const heartbeatInterval = sendHeartbeats(res);
@@ -1112,9 +1108,7 @@ function processStreamEvents(stream, res) {
   });
 }
 
-/**
- * Main handler function for Vertex AI proxy
- */
+// Main handler function for Vertex AI proxy
 async function handleVertexAIRequest(req, res, useJailbreak = false) {
   const requestTime = new Date().toISOString();
   console.log(`=== NEW REQUEST (${requestTime}) ===`);
