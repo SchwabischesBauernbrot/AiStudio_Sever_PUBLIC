@@ -41,7 +41,7 @@ const apiClient = axios.create({
     rejectUnauthorized: true
   }),
   timeout: 90000,
-  baseURL: 'https://generativelanguage.googleapis.com/v1beta',
+  baseURL: 'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0399774864/locations/us-central1/publishers/google/models',
   responseEncoding: 'utf8'
 });
 
@@ -228,10 +228,13 @@ const ACADEMIC_CONTEXTS = [
 ];
 
 /**
- * Determine optimal safety settings based on the model - IMMER OFF
+ * Determine optimal safety settings based on the model
  */
 function getSafetySettings(modelName) {
-  // Für maximale Filterumgehung immer OFF verwenden, unabhängig vom Modell
+  if (!modelName) {
+    return [];
+  }
+
   const safetySettings = [
     { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'OFF' },
     { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'OFF' },
@@ -240,30 +243,45 @@ function getSafetySettings(modelName) {
     { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' },
   ];
 
-  // Bei älteren Modellen die BLOCK_NONE benötigen
-  const blockNoneModels = [
-    'gemini-1.5-pro-001', 'gemini-1.5-flash-001',
-    'gemini-1.5-flash-8b-exp-0827', 'gemini-1.5-flash-8b-exp-0924',
-    'gemini-pro', 'gemini-1.0-pro', 'gemini-1.0-pro-001',
-    'gemma-3-27b-it'
-  ];
+  const modelConfigs = {
+    blockNoneModels: [
+      'gemini-1.5-pro-001', 'gemini-1.5-flash-001',
+      'gemini-1.5-flash-8b-exp-0827', 'gemini-1.5-flash-8b-exp-0924',
+      'gemini-pro', 'gemini-1.0-pro', 'gemini-1.0-pro-001',
+      'gemma-3-27b-it'
+    ],
+    offSupportModels: [
+      'gemini-2.5-flash-preview-04-17', 'gemini-2.5-pro-exp-03-25',
+      'gemini-2.5-pro-preview-03-25', 'gemini-2.5-flash-latest',
+      'gemini-2.0-pro', 'gemini-2.0-flash',
+      'gemini-2.5-flash-preview', 'gemini-2.5-flash-preview:thinking',
+      'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
+      'gemini-2.0-flash-001', 'gemini-2.0-flash-exp',
+      'gemini-2.0-flash-exp-image-generation'
+    ],
+    newestModels: [
+      'gemini-2.5-flash', 'gemini-2.5-pro'
+    ]
+  };
 
-  const normalizedModel = modelName ? (
-    modelName.includes('/') ? modelName.split('/').pop() : modelName
-  ) : '';
+  const normalizedModel = modelName.includes('/') 
+    ? modelName.split('/').pop()
+    : modelName;
 
-  // Nur für ältere Modelle BLOCK_NONE verwenden
-  const needsBlockNone = blockNoneModels.some(model => 
-    normalizedModel.includes(model)
-  );
+  const isBlockNoneModel = modelConfigs.blockNoneModels.some(model => normalizedModel.includes(model));
+  const isOffSupportModel = modelConfigs.offSupportModels.some(model => normalizedModel.includes(model));
+  const isNewestModel = modelConfigs.newestModels.some(model => normalizedModel.includes(model));
 
-  if (needsBlockNone) {
+  if (isOffSupportModel || isNewestModel) {
+    for (const setting of safetySettings) {
+      setting.threshold = 'OFF';
+    }
+  } else if (isBlockNoneModel) {
     for (const setting of safetySettings) {
       setting.threshold = 'BLOCK_NONE';
     }
   }
 
-  // Special Case für Flash 1.0
   if (normalizedModel.toLowerCase().includes('flash') && 
       normalizedModel.includes('1.0')) {
     safetySettings[4].threshold = 'BLOCK_ONLY_HIGH';
@@ -631,36 +649,33 @@ function calculateSensitivityScore(text) {
 }
 
 /**
- * Apply various bypass techniques based on content - MAXIMALE STÄRKE
+ * Apply various bypass techniques based on content
  */
-function applyBypassTechniques(text, aggressiveLevel = 1.0) {
+function applyBypassTechniques(text, aggressiveLevel = 0.9) {
   const sensitivityScore = calculateSensitivityScore(text);
   
-  // Immer maximalen Level verwenden
-  aggressiveLevel = 1.0;
+  if (sensitivityScore > 0.65) {
+    aggressiveLevel = Math.min(aggressiveLevel + 0.15, 1.0);
+  }
   
-  // Basis-Techniken immer anwenden
   text = reformatSensitiveText(text);
   text = breakUpPatterns(text);
   text = useAlternativePhrasing(text);
   
-  // Immer Unicode-Zeichen ersetzen mit hoher Rate
-  text = characterSubstitution(text, 0.9);
+  if (Math.random() < aggressiveLevel || sensitivityScore > 0.4) {
+    text = characterSubstitution(text, 0.6 + (aggressiveLevel * 0.35));
+  }
   
-  // Immer Zero-Width-Zeichen einfügen
-  text = insertZeroWidthCharacters(text);
-  
-  // Immer akademischen Kontext hinzufügen
-  text = addContextFraming(text);
-  
-  // Immer Kontrollanweisungen einfügen
-  text = injectControlInstructions(text);
-  
-  // Für besonders sensible Inhalte mehrfach anwenden
-  if (sensitivityScore > 0.4) {
-    text = characterSubstitution(text, 0.9);
+  if (Math.random() < aggressiveLevel - 0.1 || sensitivityScore > 0.3) {
     text = insertZeroWidthCharacters(text);
-    text = breakUpPatterns(text);
+  }
+  
+  if (Math.random() < aggressiveLevel || sensitivityScore > 0.3) {
+    text = addContextFraming(text);
+  }
+  
+  if (aggressiveLevel > 0.75 || sensitivityScore > 0.5) {
+    text = injectControlInstructions(text);
   }
   
   return text;
@@ -679,7 +694,7 @@ function checkForNoBypassTag(body) {
 /**
  * Process request with bypass techniques
  */
-function processRequestWithBypass(body, bypassLevel = 1.0) {
+function processRequestWithBypass(body, bypassLevel = 0.98) {
   if (!body.messages || !Array.isArray(body.messages)) {
     return body;
   }
@@ -712,13 +727,9 @@ function processRequestWithBypass(body, bypassLevel = 1.0) {
         }
       }
       
-      // Immer maximalen Bypass anwenden, egal wie sensitiv der Inhalt ist
       const sensitivity = calculateSensitivityScore(contentForBypass);
-      const effectiveBypassLevel = Math.min(bypassLevel + (sensitivity * 0.3), 1.0);
-      
-      // Mehrfach Bypass anwenden für stärkere Filterumgehung
+      const effectiveBypassLevel = Math.min(bypassLevel + (sensitivity * 0.25), 1.0);
       let contentWithBypass = applyBypassTechniques(contentForBypass, effectiveBypassLevel);
-      contentWithBypass = applyBypassTechniques(contentWithBypass, effectiveBypassLevel);
       
       for (const placeholder in oocPlaceholders) {
         contentWithBypass = contentWithBypass.replace(placeholder, oocPlaceholders[placeholder]);
@@ -747,23 +758,27 @@ function processRequestWithBypass(body, bypassLevel = 1.0) {
           continue;
         }
         
-        // Systemrollen auch immer stark bypassen
-        const effectiveBypassLevel = 1.0;
-        let processedContent = applyBypassTechniques(contentForBypass, effectiveBypassLevel);
-        
-        for (const placeholder in summaryPlaceholders) {
-          processedContent = processedContent.replace(placeholder, summaryPlaceholders[placeholder]);
+        const sensitivity = calculateSensitivityScore(contentForBypass);
+        if (sensitivity > 0.3) {
+          const effectiveBypassLevel = Math.min(bypassLevel + 0.1, 1.0);
+          let processedContent = applyBypassTechniques(contentForBypass, effectiveBypassLevel);
+          
+          for (const placeholder in summaryPlaceholders) {
+            processedContent = processedContent.replace(placeholder, summaryPlaceholders[placeholder]);
+          }
+          
+          newBody.messages[i].content = processedContent;
         }
-        
-        newBody.messages[i].content = processedContent;
       } else {
         if (msg.content.includes('## GAME SETTINGS')) {
           continue;
         }
         
-        // Systemrollen auch immer stark bypassen
-        const effectiveBypassLevel = 1.0;
-        newBody.messages[i].content = applyBypassTechniques(msg.content, effectiveBypassLevel);
+        const sensitivity = calculateSensitivityScore(msg.content);
+        if (sensitivity > 0.3) {
+          const effectiveBypassLevel = Math.min(bypassLevel + 0.1, 1.0);
+          newBody.messages[i].content = applyBypassTechniques(msg.content, effectiveBypassLevel);
+        }
       }
     }
   }
@@ -807,17 +822,7 @@ function addJailbreakToMessages(body) {
  */
 function convertToGoogleAIFormat(messages) {
   const contents = [];
-  let hasSystem = false;
   
-  // Check if there's a system message
-  for (const msg of messages) {
-    if (msg.role === 'system') {
-      hasSystem = true;
-      break;
-    }
-  }
-  
-  // First process all non-system messages
   for (const msg of messages) {
     if (msg.role === 'user') {
       contents.push({
@@ -830,42 +835,10 @@ function convertToGoogleAIFormat(messages) {
         parts: [{ text: msg.content }]
       });
     } else if (msg.role === 'system') {
-      // For system messages, either prepend as user message or include in first user message
-      if (contents.length === 0) {
-        // If no messages yet, add as first user message
-        contents.push({
-          role: 'user',
-          parts: [{ text: `System Instruction: ${msg.content}` }]
-        });
-      } else if (contents[0].role === 'user') {
-        // Prepend to first user message if it exists
-        contents[0].parts[0].text = `System Instruction: ${msg.content}\n\n${contents[0].parts[0].text}`;
-      } else {
-        // Otherwise add as separate message
-        contents.unshift({
-          role: 'user',
-          parts: [{ text: `System Instruction: ${msg.content}` }]
-        });
-      }
-    }
-  }
-  
-  // Ensure we have a valid conversation with user-model alternation
-  if (contents.length > 0) {
-    // Make sure final message is from user
-    if (contents[contents.length - 1].role !== 'user') {
-      // Add an empty user message if the last message is from model
+      // For system messages, add as user message with special format
       contents.push({
         role: 'user',
-        parts: [{ text: 'Please continue.' }]
-      });
-    }
-    
-    // Make sure we start with user message
-    if (contents[0].role !== 'user') {
-      contents.unshift({
-        role: 'user',
-        parts: [{ text: 'Hello.' }]
+        parts: [{ text: `System Instruction: ${msg.content}` }]
       });
     }
   }
@@ -874,20 +847,21 @@ function convertToGoogleAIFormat(messages) {
 }
 
 /**
- * Convert Google AI Studios response to JanitorAI format
+ * Convert Vertex AI response to JanitorAI format
  */
-function convertToJanitorFormat(googleResponse, isStream = false) {
+function convertToJanitorFormat(vertexResponse, isStream = false) {
   if (isStream) {
     // Handle streaming response conversion
-    if (!googleResponse || !googleResponse.candidates || googleResponse.candidates.length === 0) {
+    if (!vertexResponse || !vertexResponse.predictions || vertexResponse.predictions.length === 0) {
       return null;
     }
     
-    const candidate = googleResponse.candidates[0];
+    const prediction = vertexResponse.predictions[0];
     let content = "";
     
-    if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-      content = candidate.content.parts[0].text || "";
+    if (prediction.candidates && prediction.candidates.length > 0 && 
+        prediction.candidates[0].content && prediction.candidates[0].content.parts && prediction.candidates[0].content.parts.length > 0) {
+      content = prediction.candidates[0].content.parts[0].text || "";
     }
     
     return {
@@ -900,20 +874,21 @@ function convertToJanitorFormat(googleResponse, isStream = false) {
         delta: {
           content: content
         },
-        finish_reason: candidate.finishReason || null
+        finish_reason: prediction.candidates?.[0]?.finishReason || null
       }]
     };
   } else {
     // Handle regular response conversion
-    if (!googleResponse || !googleResponse.candidates || googleResponse.candidates.length === 0) {
+    if (!vertexResponse || !vertexResponse.predictions || vertexResponse.predictions.length === 0) {
       return null;
     }
     
-    const candidate = googleResponse.candidates[0];
+    const prediction = vertexResponse.predictions[0];
     let content = "";
     
-    if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-      content = candidate.content.parts.map(part => part.text || "").join("\n");
+    if (prediction.candidates && prediction.candidates.length > 0 && 
+        prediction.candidates[0].content && prediction.candidates[0].content.parts && prediction.candidates[0].content.parts.length > 0) {
+      content = prediction.candidates[0].content.parts.map(part => part.text || "").join("\n");
     }
     
     return {
@@ -927,7 +902,7 @@ function convertToJanitorFormat(googleResponse, isStream = false) {
           role: "assistant",
           content: content
         },
-        finish_reason: candidate.finishReason || "stop"
+        finish_reason: prediction.candidates?.[0]?.finishReason || "stop"
       }],
       usage: {
         prompt_tokens: 0,
@@ -968,38 +943,27 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
   let lastError;
   let attemptDelay = 350;
   
-  // Log request data for debugging (nur für non-stream)
-  if (!isStream) {
-    console.log("Request data:", JSON.stringify({
-      model: data.model,
-      safetySettings: data.safetySettings,
-      generationConfig: data.generationConfig
-    }, null, 2));
-  }
-  
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       if (attempt > 0) {
         console.log(`API attempt ${attempt + 1}/${maxRetries + 1} after ${attemptDelay}ms delay...`);
       } else {
-        console.log(`Request to Google AI Studios (attempt 1/${maxRetries + 1})`);
+        console.log(`Request to Vertex AI (attempt 1/${maxRetries + 1})`);
       }
       
-      const endpoint = isStream ? 'streamGenerateContent' : 'generateContent';
+      // Vertex AI uses :predict instead of :generateContent or :streamGenerateContent
+      const endpoint = isStream ? 'predict' : 'predict';
       const queryParams = new URLSearchParams({ key: apiKey });
-      if (isStream) {
-        queryParams.append('alt', 'sse');
-      }
       
-      const fullUrl = `https://generativelanguage.googleapis.com/v1beta/models/${data.model}:${endpoint}?${queryParams.toString()}`;
+      // Vertex AI endpoint for the specified model
+      const modelName = data.model.replace('gemini-', '');
+      const fullUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0399774864/locations/us-central1/publishers/google/models/${modelName}:${endpoint}`;
       
       if (isStream) {
         const response = await axios.post(fullUrl, data, {
           headers,
           responseType: 'stream',
           responseEncoding: 'utf8',
-          maxContentLength: Infinity,
-          timeout: 120000 // 2 Minuten Timeout für Streaming
         });
         
         return response;
@@ -1007,22 +971,12 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
         const response = await axios.post(fullUrl, data, {
           headers,
           responseEncoding: 'utf8',
-          maxContentLength: Infinity,
-          timeout: 120000 // 2 Minuten Timeout
         });
         
         return response;
       }
     } catch (error) {
       lastError = error;
-      
-      // Detailed error logging
-      console.error("Request error:", {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-        code: error.code
-      });
       
       const status = error.response?.status;
       const errorMessage = error.response?.data?.error?.message || error.message || '';
@@ -1049,14 +1003,7 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
         error.message.toLowerCase().includes('connection')
       );
       
-      // Erweiterte Retry-Logik: Auch bei Fehlercode 400 wiederholen, wenn bestimmte Bedingungen zutreffen
-      const isRetryableClientError = 
-        status === 400 && 
-        (errorMessage.includes('Invalid model:') || 
-         errorMessage.includes('Bad Request') ||
-         errorMessage.includes('Please use a valid role'));
-      
-      const shouldRetry = (isRateLimitError || isServerError || isConnectionError || isRetryableClientError) && attempt < maxRetries;
+      const shouldRetry = (isRateLimitError || isServerError || isConnectionError) && attempt < maxRetries;
       
       if (shouldRetry) {
         if (isRateLimitError) {
@@ -1065,20 +1012,6 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
           console.log(`Server error (${status}) - retrying...`);
         } else if (isConnectionError) {
           console.log(`Connection error - retrying...`);
-        } else if (isRetryableClientError) {
-          console.log(`Retryable client error (${status}) - retrying... ${errorMessage}`);
-          // Bei bestimmten Fehlern Daten anpassen
-          if (errorMessage.includes('Please use a valid role')) {
-            // Rollen anpassen: Wenn role="assistant" ist, zu "model" ändern
-            if (data.contents) {
-              for (const content of data.contents) {
-                if (content.role === 'assistant') {
-                  content.role = 'model';
-                  console.log("Converted 'assistant' role to 'model'");
-                }
-              }
-            }
-          }
         }
         
         attemptDelay = Math.floor(attemptDelay * 1.2 * (1 + (Math.random() * 0.15)));
@@ -1096,7 +1029,7 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
 }
 
 /**
- * Process stream events from Google AI Studios
+ * Process stream events from Vertex AI
  */
 function processStreamEvents(stream, res) {
   let buffer = '';
@@ -1137,18 +1070,14 @@ function processStreamEvents(stream, res) {
           res.write('data: [DONE]\n\n');
         } else {
           try {
-            const googleData = JSON.parse(dataJson);
-            const janitorData = convertToJanitorFormat(googleData, true);
+            const vertexData = JSON.parse(dataJson);
+            const janitorData = convertToJanitorFormat(vertexData, true);
             
             if (janitorData) {
               res.write(`data: ${JSON.stringify(janitorData)}\n\n`);
             }
           } catch (e) {
             console.error('Error parsing stream data:', e.message);
-            // Rohe Fehlermeldung direkt durchreichen
-            if (!res.writableEnded) {
-              res.write(`data: ${dataJson}\n\n`);
-            }
           }
         }
       }
@@ -1171,12 +1100,7 @@ function processStreamEvents(stream, res) {
     clearInterval(heartbeatInterval);
     console.error('Stream error:', error);
     if (!res.writableEnded) {
-      // Originale Fehlermeldung durchreichen ohne Modifikation
-      if (error.response?.data) {
-        res.write(`data: ${JSON.stringify(error.response.data)}\n\n`);
-      } else {
-        res.write(`data: {"error": {"message": "${error.message.replace(/"/g, '\\"')}"}}\n\n`);
-      }
+      res.write(`data: {"error": {"message": "${error.message.replace(/"/g, '\\"')}"}}\n\n`);
       res.write('data: [DONE]\n\n');
       res.end();
     }
@@ -1189,9 +1113,9 @@ function processStreamEvents(stream, res) {
 }
 
 /**
- * Main handler function for Google AI Studios proxy
+ * Main handler function for Vertex AI proxy
  */
-async function handleGoogleAIRequest(req, res, useJailbreak = false) {
+async function handleVertexAIRequest(req, res, useJailbreak = false) {
   const requestTime = new Date().toISOString();
   console.log(`=== NEW REQUEST (${requestTime}) ===`);
   
@@ -1235,12 +1159,10 @@ async function handleGoogleAIRequest(req, res, useJailbreak = false) {
     
     let processedBody = JSON.parse(JSON.stringify(req.body));
     
-    // Apply bypass techniques if not disabled - IMMER mit maximaler Stärke
+    // Apply bypass techniques if not disabled
     if (!bypassDisabled) {
-      console.log("* Ultra-Bypass: Aktiviert mit maximaler Stärke");
-      // Doppelter Bypass für maximale Filterumgehung
-      processedBody = processRequestWithBypass(processedBody, 1.0);
-      processedBody = processRequestWithBypass(processedBody, 1.0);
+      console.log("* Ultra-Bypass: Activated");
+      processedBody = processRequestWithBypass(processedBody, 0.98);
     } else {
       console.log("* Ultra-Bypass: Disabled");
     }
@@ -1271,40 +1193,33 @@ async function handleGoogleAIRequest(req, res, useJailbreak = false) {
       }
     }
     
-    // Convert JanitorAI messages to Google AI format
-    const contents = convertToGoogleAIFormat(processedBody.messages);
+    // Convert JanitorAI messages to Vertex AI format
+    const vertexRequestBody = convertToVertexAIFormat(processedBody.messages);
     
-    // Determine safety settings based on model - IMMER OFF für alle
-    const safetySettings = getSafetySettings(model);
-    for (const setting of safetySettings) {
-      setting.threshold = 'OFF';
-    }
-    console.log(`* Safety Settings: OFF (maximale Filterumgehung)`);
-    
-    // Prepare request data for Google AI Studios
-    const requestData = {
-      model: model,
-      contents: contents,
-      safetySettings: safetySettings,
-      generationConfig: {
-        temperature: processedBody.temperature || DEFAULT_PARAMS.temperature,
-        maxOutputTokens: processedBody.max_tokens || DEFAULT_PARAMS.maxOutputTokens,
-        topP: processedBody.top_p || DEFAULT_PARAMS.topP,
-        topK: processedBody.top_k || DEFAULT_PARAMS.topK,
-        stopSequences: processedBody.stop || [],
-      }
+    // Add generation parameters
+    vertexRequestBody.parameters = {
+      temperature: processedBody.temperature || DEFAULT_PARAMS.temperature,
+      maxOutputTokens: processedBody.max_tokens || DEFAULT_PARAMS.maxOutputTokens,
+      topP: processedBody.top_p || DEFAULT_PARAMS.topP,
+      topK: processedBody.top_k || DEFAULT_PARAMS.topK,
     };
+    
+    // Add safety settings
+    const safetySettings = getSafetySettings(model);
+    console.log(`* Safety Settings: ${safetySettings[0]?.threshold || 'Default'}`);
+    
+    vertexRequestBody.parameters.safetySettings = safetySettings;
     
     // Add penalties if provided
     if (processedBody.frequency_penalty !== undefined) {
-      requestData.generationConfig.frequencyPenalty = processedBody.frequency_penalty;
+      vertexRequestBody.parameters.frequencyPenalty = processedBody.frequency_penalty;
     }
     
     if (processedBody.presence_penalty !== undefined) {
-      requestData.generationConfig.presencePenalty = processedBody.presence_penalty;
+      vertexRequestBody.parameters.presencePenalty = processedBody.presence_penalty;
     }
     
-    // Headers for Google AI Studios request
+    // Headers for Vertex AI request
     const headers = {
       'Content-Type': 'application/json; charset=utf-8',
       'Accept': 'application/json',
@@ -1314,62 +1229,49 @@ async function handleGoogleAIRequest(req, res, useJailbreak = false) {
     try {
       if (isStreamingRequested) {
         // Handle streaming request
-        console.log("* Making streaming request to Google AI Studios");
-        const response = await makeRequestWithRetry(null, requestData, headers, apiKey, 25, true);
+        console.log("* Making streaming request to Vertex AI");
+        const response = await makeRequestWithRetry(null, vertexRequestBody, headers, apiKey, 25, true);
         
         if (response && response.data && typeof response.data.pipe === 'function') {
           processStreamEvents(response.data, res);
         } else {
-          // Originale Fehler durchreichen
-          if (response && response.data) {
-            return res.status(response.status || 500).json(response.data);
-          } else {
-            return res.status(500).json({ error: { message: "Stream response error", code: "stream_error" } });
-          }
+          return res.status(500).json({ error: { message: "Invalid streaming response from Vertex AI", code: "invalid_response" } });
         }
       } else {
         // Handle regular request
-        console.log("* Making regular request to Google AI Studios");
-        const response = await makeRequestWithRetry(null, requestData, headers, apiKey, 25, false);
+        console.log("* Making regular request to Vertex AI");
+        const response = await makeRequestWithRetry(null, vertexRequestBody, headers, apiKey, 25, false);
         
-        // Wenn Originaldaten vorhanden, dann direkt zurücksenden
-        if (response.data) {
-          const janitorResponse = convertToJanitorFormat(response.data);
-          if (janitorResponse) {
-            return res.json(janitorResponse);
-          } else {
-            // Wenn Konvertierung fehlschlägt, Originaldaten senden
-            return res.json(response.data);
-          }
+        const janitorResponse = convertToJanitorFormat(response.data);
+        if (janitorResponse) {
+          return res.json(janitorResponse);
         } else {
-          // Leeren Fehler zurückgeben, wenn keine Daten vorhanden
-          return res.status(response.status || 500).json({ error: { message: "Empty response", code: "empty_response" } });
+          return res.status(500).json({ error: { message: "Failed to convert Vertex AI response", code: "conversion_error" } });
         }
       }
     } catch (error) {
-      console.error("Error calling Google AI Studios:", error.message);
+      console.error("Error calling Vertex AI:", error.message);
       
-      // Originalen Fehler direkt weitergeben ohne Änderungen
-      if (error.response) {
-        return res.status(error.response.status || 500).json(error.response.data || { error: { message: error.message } });
+      // Pass through original error from Vertex AI
+      if (error.response?.data) {
+        return res.status(error.response.status || 500).json(error.response.data);
       } else {
-        return res.status(500).json({ error: { message: error.message, code: error.code || error.name || "error" } });
+        return res.status(500).json({ error: { message: error.message, code: error.code || "unknown_error" } });
       }
     }
   } catch (error) {
     console.error("Unexpected error:", error);
-    // Originalen Fehler direkt weitergeben
-    return res.status(500).json({ error: { message: error.message, stack: error.stack, name: error.name } });
+    return res.status(500).json({ error: { message: error.message, code: "internal_server_error" } });
   }
 }
 
 // API Routes
 app.post('/jailbreak', (req, res) => {
-  return handleGoogleAIRequest(req, res, true);
+  return handleVertexAIRequest(req, res, true);
 });
 
 app.post('/nonjailbreak', (req, res) => {
-  return handleGoogleAIRequest(req, res, false);
+  return handleVertexAIRequest(req, res, false);
 });
 
 // Status route
@@ -1377,11 +1279,12 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     version: '1.0.0',
-    info: 'Google AI Studios Proxy for JanitorAI',
+    info: 'Vertex AI Proxy for JanitorAI',
     endpoints: {
-      "/jailbreak": "Google AI Studios with jailbreak enabled",
-      "/nonjailbreak": "Google AI Studios without jailbreak"
+      "/jailbreak": "Vertex AI with jailbreak enabled",
+      "/nonjailbreak": "Vertex AI without jailbreak"
     },
+    project: "gen-lang-client-0399774864",
     safety: "All safety filters disabled (OFF) automatically for optimal experience"
   });
 });
@@ -1389,6 +1292,6 @@ app.get('/', (req, res) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Google AI Studios Proxy running on port ${PORT}`);
+  console.log(`Vertex AI Proxy running on port ${PORT}`);
   console.log(`${new Date().toISOString()} - Server started`);
 });
