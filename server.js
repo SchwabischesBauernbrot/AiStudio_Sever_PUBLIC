@@ -31,7 +31,7 @@ const apiClient = axios.create({
 
 const MODEL_DEFAULTS = {
   temperature: 0.7,
-  maxOutputTokens: 4096,
+  maxOutputTokens: 32768,
   topP: 0.95,
   topK: 40,
   frequencyPenalty: 0.0,
