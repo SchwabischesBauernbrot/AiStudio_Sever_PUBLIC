@@ -41,7 +41,6 @@ const apiClient = axios.create({
     rejectUnauthorized: true
   }),
   timeout: 90000,
-  baseURL: 'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0399774864/locations/us-central1/publishers/google/models',
   responseEncoding: 'utf8'
 });
 
@@ -682,6 +681,24 @@ function applyBypassTechniques(text, aggressiveLevel = 0.9) {
 }
 
 /**
+ * Extract Project ID from the request
+ */
+function extractProjectID(body) {
+  if (!body) return null;
+  
+  const fullText = JSON.stringify(body);
+  const projectIDMatch = fullText.match(/<PROJECTID>(.*?)<\/PROJECTID>/);
+  
+  if (projectIDMatch && projectIDMatch[1]) {
+    console.log(`* Project ID found: ${projectIDMatch[1]}`);
+    return projectIDMatch[1];
+  }
+  
+  console.log("* No Project ID found in request");
+  return null;
+}
+
+/**
  * Check for <NOBYPASS!> tag anywhere in the request
  */
 function checkForNoBypassTag(body) {
@@ -818,35 +835,48 @@ function addJailbreakToMessages(body) {
 }
 
 /**
- * Convert JanitorAI message format to Google AI Studios format
+ * Convert JanitorAI message format to Vertex AI format
  */
-function convertToGoogleAIFormat(messages) {
-  const contents = [];
-  
-  for (const msg of messages) {
-    if (msg.role === 'user') {
-      contents.push({
-        role: 'user',
-        parts: [{ text: msg.content }]
-      });
-    } else if (msg.role === 'assistant') {
-      contents.push({
-        role: 'model',
-        parts: [{ text: msg.content }]
-      });
-    } else if (msg.role === 'system') {
-      // For system messages, add as user message with special format
-      contents.push({
-        role: 'user',
-        parts: [{ text: `System Instruction: ${msg.content}` }]
-      });
+function convertToVertexAIFormat(messages) {
+  const instances = [
+    {
+      context: "",
+      examples: [],
+      messages: []
     }
+  ];
+  
+  let systemContent = "";
+  
+  // First extract system message as context if it exists
+  const systemMessage = messages.find(msg => msg.role === 'system');
+  if (systemMessage) {
+    systemContent = systemMessage.content;
+    instances[0].context = systemContent;
   }
   
-  return contents;
+  // Then add the conversation messages
+  for (const msg of messages) {
+    if (msg.role === 'user') {
+      instances[0].messages.push({
+        author: 'user',
+        content: msg.content
+      });
+    } else if (msg.role === 'assistant') {
+      instances[0].messages.push({
+        author: 'assistant',
+        content: msg.content
+      });
+    }
+    // We already handled system message as context
+  }
+  
+  return instances;
 }
 
-// Convert Vertex AI response to JanitorAI format
+/**
+ * Convert Vertex AI response to JanitorAI format
+ */
 function convertToJanitorFormat(vertexResponse, isStream = false) {
   if (isStream) {
     // Handle streaming response conversion
@@ -857,9 +887,10 @@ function convertToJanitorFormat(vertexResponse, isStream = false) {
     const prediction = vertexResponse.predictions[0];
     let content = "";
     
-    if (prediction.candidates && prediction.candidates.length > 0 && 
-        prediction.candidates[0].content && prediction.candidates[0].content.parts && prediction.candidates[0].content.parts.length > 0) {
-      content = prediction.candidates[0].content.parts[0].text || "";
+    if (prediction.candidates && prediction.candidates.length > 0) {
+      content = prediction.candidates[0].content || "";
+    } else if (prediction.content) {
+      content = prediction.content;
     }
     
     return {
@@ -872,7 +903,7 @@ function convertToJanitorFormat(vertexResponse, isStream = false) {
         delta: {
           content: content
         },
-        finish_reason: prediction.candidates?.[0]?.finishReason || null
+        finish_reason: prediction.finishReason || null
       }]
     };
   } else {
@@ -884,9 +915,10 @@ function convertToJanitorFormat(vertexResponse, isStream = false) {
     const prediction = vertexResponse.predictions[0];
     let content = "";
     
-    if (prediction.candidates && prediction.candidates.length > 0 && 
-        prediction.candidates[0].content && prediction.candidates[0].content.parts && prediction.candidates[0].content.parts.length > 0) {
-      content = prediction.candidates[0].content.parts.map(part => part.text || "").join("\n");
+    if (prediction.candidates && prediction.candidates.length > 0) {
+      content = prediction.candidates[0].content || "";
+    } else if (prediction.content) {
+      content = prediction.content;
     }
     
     return {
@@ -900,7 +932,7 @@ function convertToJanitorFormat(vertexResponse, isStream = false) {
           role: "assistant",
           content: content
         },
-        finish_reason: prediction.candidates?.[0]?.finishReason || "stop"
+        finish_reason: prediction.finishReason || "stop"
       }],
       usage: {
         prompt_tokens: 0,
@@ -935,9 +967,9 @@ function sendHeartbeats(res, interval = 10000) {
 }
 
 /**
- * Make API request with retry logic
+ * Make API request with retry logic for Vertex AI
  */
-async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25, isStream = false) {
+async function makeRequestWithRetry(projectId, location, model, data, headers, apiKey, maxRetries = 25, isStream = false) {
   let lastError;
   let attemptDelay = 350;
   
@@ -949,17 +981,26 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
         console.log(`Request to Vertex AI (attempt 1/${maxRetries + 1})`);
       }
       
-      // Vertex AI uses :predict instead of :generateContent or :streamGenerateContent
-      const endpoint = isStream ? 'predict' : 'predict';
-      const queryParams = new URLSearchParams({ key: apiKey });
+      // Build URL for Vertex AI
+      const fullUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:predict`;
       
-      // Vertex AI endpoint for the specified model
-      const modelName = data.model.replace('gemini-', '');
-      const fullUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0399774864/locations/us-central1/publishers/google/models/${modelName}:${endpoint}`;
+      console.log(`* Vertex AI URL: ${fullUrl}`);
       
       if (isStream) {
-        const response = await axios.post(fullUrl, data, {
-          headers,
+        // For streaming we need to modify the request slightly
+        const streamData = {
+          ...data,
+          parameters: {
+            ...data.parameters,
+            stream: true
+          }
+        };
+        
+        const response = await axios.post(fullUrl, streamData, {
+          headers: {
+            ...headers,
+            'Authorization': `Bearer ${apiKey}`
+          },
           responseType: 'stream',
           responseEncoding: 'utf8',
         });
@@ -967,7 +1008,10 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
         return response;
       } else {
         const response = await axios.post(fullUrl, data, {
-          headers,
+          headers: {
+            ...headers,
+            'Authorization': `Bearer ${apiKey}`
+          },
           responseEncoding: 'utf8',
         });
         
@@ -979,6 +1023,8 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
       const status = error.response?.status;
       const errorMessage = error.response?.data?.error?.message || error.message || '';
       const errorCode = error.response?.data?.error?.code || '';
+      
+      console.log(`Error: ${errorMessage} (${status})`);
       
       const isRateLimitError = (
         status === 429 ||
@@ -1026,7 +1072,9 @@ async function makeRequestWithRetry(url, data, headers, apiKey, maxRetries = 25,
   throw lastError || new Error("Maximum retries exceeded");
 }
 
-// Process stream events from Vertex AI
+/**
+ * Process stream events from Vertex AI
+ */
 function processStreamEvents(stream, res) {
   let buffer = '';
   const heartbeatInterval = sendHeartbeats(res);
@@ -1062,7 +1110,7 @@ function processStreamEvents(stream, res) {
       if (eventStr.startsWith('data: ')) {
         const dataJson = eventStr.substring(6);
         
-        if (dataJson === '[DONE]') {
+        if (dataJson === '[DONE]' || dataJson.includes('"finishReason"')) {
           res.write('data: [DONE]\n\n');
         } else {
           try {
@@ -1108,7 +1156,9 @@ function processStreamEvents(stream, res) {
   });
 }
 
-// Main handler function for Vertex AI proxy
+/**
+ * Main handler function for Vertex AI proxy
+ */
 async function handleVertexAIRequest(req, res, useJailbreak = false) {
   const requestTime = new Date().toISOString();
   console.log(`=== NEW REQUEST (${requestTime}) ===`);
@@ -1136,6 +1186,15 @@ async function handleVertexAIRequest(req, res, useJailbreak = false) {
       return res.status(400).json({ error: { message: "Missing messages array in request body", code: "invalid_request" } });
     }
     
+    // Extract project ID from request
+    const projectId = extractProjectID(req.body);
+    if (!projectId) {
+      return res.status(400).json({ error: { message: "Missing Project ID. Please include <PROJECTID>your-project-id</PROJECTID> in your request", code: "missing_project_id" } });
+    }
+    
+    // Set location (default to us-central1)
+    const location = "us-central1";
+    
     // Get model from request or use default
     let model = req.body.model;
     if (!model) {
@@ -1143,6 +1202,8 @@ async function handleVertexAIRequest(req, res, useJailbreak = false) {
     }
     
     console.log(`* Model: ${model}`);
+    console.log(`* Project ID: ${projectId}`);
+    console.log(`* Location: ${location}`);
     
     // Check for streaming
     const isStreamingRequested = req.body.stream === true;
@@ -1188,43 +1249,45 @@ async function handleVertexAIRequest(req, res, useJailbreak = false) {
     }
     
     // Convert JanitorAI messages to Vertex AI format
-    const vertexRequestBody = convertToVertexAIFormat(processedBody.messages);
+    const instances = convertToVertexAIFormat(processedBody.messages);
     
-    // Add generation parameters
-    vertexRequestBody.parameters = {
-      temperature: processedBody.temperature || DEFAULT_PARAMS.temperature,
-      maxOutputTokens: processedBody.max_tokens || DEFAULT_PARAMS.maxOutputTokens,
-      topP: processedBody.top_p || DEFAULT_PARAMS.topP,
-      topK: processedBody.top_k || DEFAULT_PARAMS.topK,
-    };
-    
-    // Add safety settings
+    // Determine safety settings based on model
     const safetySettings = getSafetySettings(model);
     console.log(`* Safety Settings: ${safetySettings[0]?.threshold || 'Default'}`);
     
-    vertexRequestBody.parameters.safetySettings = safetySettings;
+    // Prepare request data for Vertex AI
+    const requestData = {
+      instances: instances,
+      parameters: {
+        temperature: processedBody.temperature || DEFAULT_PARAMS.temperature,
+        maxOutputTokens: processedBody.max_tokens || DEFAULT_PARAMS.maxOutputTokens,
+        topP: processedBody.top_p || DEFAULT_PARAMS.topP,
+        topK: processedBody.top_k || DEFAULT_PARAMS.topK,
+        stopSequences: processedBody.stop || [],
+        safetySettings: safetySettings
+      }
+    };
     
     // Add penalties if provided
     if (processedBody.frequency_penalty !== undefined) {
-      vertexRequestBody.parameters.frequencyPenalty = processedBody.frequency_penalty;
+      requestData.parameters.frequencyPenalty = processedBody.frequency_penalty;
     }
     
     if (processedBody.presence_penalty !== undefined) {
-      vertexRequestBody.parameters.presencePenalty = processedBody.presence_penalty;
+      requestData.parameters.presencePenalty = processedBody.presence_penalty;
     }
     
     // Headers for Vertex AI request
     const headers = {
       'Content-Type': 'application/json; charset=utf-8',
-      'Accept': 'application/json',
-      'X-Goog-Api-Key': apiKey,
+      'Accept': 'application/json'
     };
     
     try {
       if (isStreamingRequested) {
         // Handle streaming request
         console.log("* Making streaming request to Vertex AI");
-        const response = await makeRequestWithRetry(null, vertexRequestBody, headers, apiKey, 25, true);
+        const response = await makeRequestWithRetry(projectId, location, model, requestData, headers, apiKey, 25, true);
         
         if (response && response.data && typeof response.data.pipe === 'function') {
           processStreamEvents(response.data, res);
@@ -1234,7 +1297,7 @@ async function handleVertexAIRequest(req, res, useJailbreak = false) {
       } else {
         // Handle regular request
         console.log("* Making regular request to Vertex AI");
-        const response = await makeRequestWithRetry(null, vertexRequestBody, headers, apiKey, 25, false);
+        const response = await makeRequestWithRetry(projectId, location, model, requestData, headers, apiKey, 25, false);
         
         const janitorResponse = convertToJanitorFormat(response.data);
         if (janitorResponse) {
@@ -1278,7 +1341,7 @@ app.get('/', (req, res) => {
       "/jailbreak": "Vertex AI with jailbreak enabled",
       "/nonjailbreak": "Vertex AI without jailbreak"
     },
-    project: "gen-lang-client-0399774864",
+    usage: "Include <PROJECTID>your-project-id</PROJECTID> in your request",
     safety: "All safety filters disabled (OFF) automatically for optimal experience"
   });
 });
@@ -1286,6 +1349,6 @@ app.get('/', (req, res) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Vertex AI Proxy running on port ${PORT}`);
+  console.log(`Google AI Studios Proxy running on port ${PORT}`);
   console.log(`${new Date().toISOString()} - Server started`);
 });
