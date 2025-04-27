@@ -735,7 +735,7 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
           
           // Prüfe, ob die Antwort tatsächlich Inhalt hat (nicht nur Leerzeichen)
           if (!finalContent || finalContent.trim() === "") {
-            const errorMessage = "Error: Leere Antwort";
+            const errorMessage = "Error: Empty Answer";
             logMessage("* Error Code: Leere Antwort von Google AI", "error");
             logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
             
@@ -798,7 +798,7 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
             return res.json(formattedResponse);
           }
         } else {
-          const errorMessage = "Error: Keine gültige Antwort von Google AI";
+          const errorMessage = "Error: Empty Answer";
           logMessage("* Error Code: Keine gültige Antwort", "error");
           logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
           
@@ -821,7 +821,7 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
           }
         }
       } else {
-        const errorMessage = "Error: Leere Antwort";
+        const errorMessage = "Error: Empty Message";
         logMessage("* Error Code: Leere Antwort von Google AI", "error");
         logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
         console.log("=== ENDE ANFRAGE ===\n");
