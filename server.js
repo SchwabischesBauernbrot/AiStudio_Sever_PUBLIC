@@ -537,6 +537,30 @@ function logMessage(message, type = 'info') {
   console.log(`${colorCode}${message}${resetCode}`);
 }
 
+// Stellt sicher, dass Streaming-Fehler korrekt formatiert werden
+function formatStreamingError(errorResponse) {
+  try {
+    // Wenn die Antwort bereits ein Objekt ist, verwende es direkt
+    const errorData = typeof errorResponse === 'object' ? errorResponse : JSON.parse(errorResponse);
+    
+    // Extrahiere die originale Fehlermeldung
+    let errorMessage = "Unknown error";
+    
+    if (errorData.error && errorData.error.message) {
+      errorMessage = errorData.error.message;
+    } else if (errorData.error && typeof errorData.error === 'string') {
+      errorMessage = errorData.error;
+    } else if (errorData.message) {
+      errorMessage = errorData.message;
+    }
+    
+    return errorMessage;
+  } catch (e) {
+    // Falls die Antwort nicht JSON ist, gib sie unverändert zurück
+    return errorResponse.toString();
+  }
+}
+
 async function handleProxyRequest(req, res, useJailbreak = false) {
   const requestTime = new Date().toISOString();
   console.log(`\n=== NEUE ANFRAGE (${requestTime}) ===`);
@@ -558,7 +582,14 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
     if (!apiKey) {
       logMessage("* Error Code: Fehlender API-Schlüssel", "error");
       console.log("=== ENDE ANFRAGE ===\n");
-      return res.status(401).json({ error: "Google AI API key missing" });
+      
+      const errorResponse = { error: { message: "Google AI API key missing", code: 401 } };
+      
+      if (req.body?.stream) {
+        return simulateStreamingResponse(JSON.stringify(errorResponse), res);
+      } else {
+        return res.status(401).json(errorResponse);
+      }
     }
     
     // Check for special command tags
@@ -686,7 +717,14 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
     if (!contents) {
       logMessage("* Error Code: Ungültiges Nachrichtenformat", "error");
       console.log("=== ENDE ANFRAGE ===\n");
-      return res.status(400).json({ error: "Invalid message format" });
+      
+      const errorResponse = { error: { message: "Invalid message format", code: 400 } };
+      
+      if (isStreamingRequested) {
+        return simulateStreamingResponse(JSON.stringify(errorResponse), res);
+      } else {
+        return res.status(400).json(errorResponse);
+      }
     }
     
     // Set generation configuration
@@ -706,7 +744,7 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
       generationConfig
     };
     
-    // Always use non-streaming for actual Google API request
+    // Determine endpoint based on streaming (but we're going to handle streaming ourselves)
     const endpoint = "generateContent";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:${endpoint}?key=${apiKey}`;
     
@@ -715,161 +753,241 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
     };
     
     try {
-      // Make non-streaming request
+      // Make request to Google AI
       logMessage("* Anfrage wird an Google AI gesendet...");
       const requestStartTime = Date.now();
-      const response = await apiClient.post(url, googleAIBody, { headers });
-      const requestDuration = Date.now() - requestStartTime;
-      logMessage(`* Google AI-Antwort erhalten (${requestDuration}ms)`);
+      
+      // ÄNDERUNG: Verbessertes Error-Handling mit allen Original-Fehlermeldungen
+      let response;
+      try {
+        response = await apiClient.post(url, googleAIBody, { headers });
+        const requestDuration = Date.now() - requestStartTime;
+        logMessage(`* Google AI-Antwort erhalten (${requestDuration}ms)`);
+      } catch (error) {
+        // Extrahiere den kompletten Original-Fehler von Google AI
+        let errorMessage = "Unknown error";
+        let statusCode = 500;
+        let errorDetails = {};
+        
+        if (error.response) {
+          // Die Antwort enthält Fehlerdaten von Google AI
+          statusCode = error.response.status;
+          
+          // Log den vollständigen Fehler im Format, wie er von Google AI kommt
+          logMessage(`* Google AI Error (HTTP ${statusCode}): ${JSON.stringify(error.response.data)}`, "error");
+          
+          // Strukturiere die Fehlermeldung für die Rückgabe
+          if (error.response.data && error.response.data.error) {
+            errorMessage = error.response.data.error.message || "API Error";
+            errorDetails = error.response.data.error;
+          }
+        } else if (error.request) {
+          // Die Anfrage wurde gestellt, aber keine Antwort erhalten
+          errorMessage = "No response received from Google AI";
+          logMessage(`* Connection Error: ${errorMessage}`, "error");
+        } else {
+          // Fehler beim Aufbau der Anfrage
+          errorMessage = error.message;
+          logMessage(`* Request Error: ${errorMessage}`, "error");
+        }
+        
+        // Erstelle eine OpenAI-kompatible Fehlerantwort
+        const errorResponse = {
+          error: {
+            message: errorMessage,
+            type: "google_ai_error",
+            code: statusCode,
+            ...errorDetails
+          }
+        };
+        
+        console.log("=== ENDE ANFRAGE ===\n");
+        
+        // Stream oder Standard-Antwort je nach Anforderung
+        if (isStreamingRequested) {
+          return simulateStreamingResponse(JSON.stringify(errorResponse), res);
+        } else {
+          // Gib den Fehler mit dem korrekten Status-Code zurück
+          return res.status(200).json(errorResponse);
+        }
+      }
       
       if (response.data) {
-        const responseData = response.data;
-        
-        if (responseData.candidates && responseData.candidates.length > 0) {
-          const candidate = responseData.candidates[0];
-          let finalContent = "";
+        // Prüfe auf leere Antwort oder Blockierung durch Sicherheitsfilter
+        if (!response.data.candidates || response.data.candidates.length === 0) {
+          // Dies ist ein Filter-Blockierungsfall oder ein anderer Google AI-Fehler
           
-          if (candidate.content && candidate.content.parts) {
-            finalContent = candidate.content.parts.map(part => part.text || "").join("\n");
-          }
+          // Extrahiere spezifische Fehlerdaten, falls vorhanden
+          let filterError = {
+            message: "Content filtered by Google AI safety settings",
+            type: "safety_filter",
+            code: "SAFETY_FILTER"
+          };
           
-          // Prüfe, ob die Antwort tatsächlich Inhalt hat (nicht nur Leerzeichen)
-          if (!finalContent || finalContent.trim() === "") {
-            const errorMessage = "Error: Empty Answer";
-            logMessage("* Error Code: Leere Antwort von Google AI", "error");
-            logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
+          if (response.data.promptFeedback && response.data.promptFeedback.blockReason) {
+            filterError.message = `Content blocked: ${response.data.promptFeedback.blockReason}`;
+            filterError.blockReason = response.data.promptFeedback.blockReason;
             
-            if (isStreamingRequested) {
-              console.log("=== ENDE ANFRAGE ===\n");
-              return simulateStreamingResponse(errorMessage, res);
-            } else {
-              console.log("=== ENDE ANFRAGE ===\n");
-              return res.status(200).json({
-                choices: [
-                  {
-                    message: {
-                      content: errorMessage,
-                      role: "assistant"
-                    },
-                    finish_reason: "error"
-                  }
-                ]
-              });
+            if (response.data.promptFeedback.blockReasonMessage) {
+              filterError.message = response.data.promptFeedback.blockReasonMessage;
+              filterError.detail = response.data.promptFeedback.blockReasonMessage;
             }
           }
           
-          // Nachbearbeitung: Apply markdown formatting if requested
-          if (forceMarkdown) {
-            logMessage("* Markdown-Formatierung wird angewendet...");
-            finalContent = ensureMarkdownFormatting(finalContent);
-          }
+          logMessage(`* Google AI Filter: ${filterError.message}`, "error");
+          console.log("=== ENDE ANFRAGE ===\n");
           
-          // Handle response based on whether streaming was requested
-          if (isStreamingRequested) {
-            // Simulate streaming with the full content
-            logMessage("* Erfolg an Janitor (Streaming emuliert)", "success");
-            console.log("=== ENDE ANFRAGE ===\n");
-            return simulateStreamingResponse(finalContent, res);
-          } else {
-            // Return full response in OpenAI format
-            const formattedResponse = {
-              choices: [
-                {
-                  message: {
-                    content: finalContent,
-                    role: "assistant"
-                  },
-                  finish_reason: "stop"
-                }
-              ],
-              created: Math.floor(Date.now() / 1000),
-              id: `chat-${Date.now()}`,
-              model: modelName,
-              object: "chat.completion",
-              usage: {
-                prompt_tokens: 0,
-                completion_tokens: 0,
-                total_tokens: 0
-              }
-            };
-            
-            logMessage("* Erfolg an Janitor", "success");
-            console.log("=== ENDE ANFRAGE ===\n");
-            return res.json(formattedResponse);
-          }
-        } else {
-          const errorMessage = "Error: Empty Answer";
-          logMessage("* Error Code: Keine gültige Antwort", "error");
-          logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
+          // Für Streaming- und Nicht-Streaming-Fälle
+          const errorResponse = { error: filterError };
           
           if (isStreamingRequested) {
-            console.log("=== ENDE ANFRAGE ===\n");
-            return simulateStreamingResponse(errorMessage, res);
+            return simulateStreamingResponse(JSON.stringify(errorResponse), res);
           } else {
-            console.log("=== ENDE ANFRAGE ===\n");
-            return res.status(200).json({
-              choices: [
-                {
-                  message: {
-                    content: errorMessage,
-                    role: "assistant"
-                  },
-                  finish_reason: "error"
-                }
-              ]
-            });
+            return res.status(200).json(errorResponse);
           }
         }
+        
+        const responseData = response.data;
+        const candidate = responseData.candidates[0];
+        
+        // Extrahiere den Antworttext
+        let finalContent = "";
+        if (candidate.content && candidate.content.parts) {
+          finalContent = candidate.content.parts.map(part => part.text || "").join("\n");
+        }
+        
+        // Prüfe auf leere Antwort
+        if (!finalContent || finalContent.trim() === "") {
+          const emptyError = {
+            message: "Empty response from Google AI",
+            type: "empty_response",
+            code: "EMPTY_CONTENT"
+          };
+          
+          logMessage("* Error: Leere Antwort", "error");
+          console.log("=== ENDE ANFRAGE ===\n");
+          
+          const errorResponse = { error: emptyError };
+          
+          if (isStreamingRequested) {
+            return simulateStreamingResponse(JSON.stringify(errorResponse), res);
+          } else {
+            return res.status(200).json(errorResponse);
+          }
+        }
+        
+        // Markdown-Formatierung anwenden, falls gewünscht
+        if (forceMarkdown) {
+          logMessage("* Markdown-Formatierung wird angewendet...");
+          finalContent = ensureMarkdownFormatting(finalContent);
+        }
+        
+        // Streaming oder direkte Antwort
+        if (isStreamingRequested) {
+          logMessage("* Erfolg an Janitor (Streaming emuliert)", "success");
+          console.log("=== ENDE ANFRAGE ===\n");
+          return simulateStreamingResponse(finalContent, res);
+        } else {
+          // OpenAI-kompatibles Format für die Antwort
+          const openaiResponse = {
+            id: `chatcmpl-${Date.now()}`,
+            object: "chat.completion",
+            created: Math.floor(Date.now() / 1000),
+            model: modelName,
+            choices: [{
+              index: 0,
+              message: {
+                role: "assistant",
+                content: finalContent
+              },
+              finish_reason: "stop"
+            }],
+            usage: {
+              prompt_tokens: 0,  // Wir kennen die genaue Zahl nicht
+              completion_tokens: 0,
+              total_tokens: 0
+            }
+          };
+          
+          // Falls zusätzliche Informationen von Google AI vorhanden sind
+          if (candidate.finishReason) {
+            openaiResponse.choices[0].finish_reason = candidate.finishReason.toLowerCase();
+          }
+          
+          if (responseData.usageMetadata) {
+            openaiResponse.usage = {
+              prompt_tokens: responseData.usageMetadata.promptTokenCount || 0,
+              completion_tokens: responseData.usageMetadata.candidatesTokenCount || 0,
+              total_tokens: (responseData.usageMetadata.promptTokenCount || 0) + 
+                            (responseData.usageMetadata.candidatesTokenCount || 0)
+            };
+          }
+          
+          logMessage("* Erfolg an Janitor", "success");
+          console.log("=== ENDE ANFRAGE ===\n");
+          return res.json(openaiResponse);
+        }
       } else {
-        const errorMessage = "Error: Empty Message";
-        logMessage("* Error Code: Leere Antwort von Google AI", "error");
-        logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
+        // Leere Antwort von Google AI
+        const emptyResponseError = {
+          message: "Empty response from Google AI",
+          type: "empty_response",
+          code: "NO_DATA" 
+        };
+        
+        logMessage("* Error: Keine Daten von Google AI", "error");
         console.log("=== ENDE ANFRAGE ===\n");
-        throw new Error("Leere Antwort");
+        
+        const errorResponse = { error: emptyResponseError };
+        
+        if (isStreamingRequested) {
+          return simulateStreamingResponse(JSON.stringify(errorResponse), res);
+        } else {
+          return res.status(200).json(errorResponse);
+        }
       }
     } catch (error) {
-      const errorMessage = `Error: ${error.message}`;
-      logMessage(`* Error Code: ${error.message}`, "error");
-      logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
+      // Generischer Fehlerfall (sollte selten vorkommen, da spezifische Fehler oben abgefangen werden)
+      const genericError = {
+        message: error.message || "Unexpected error",
+        type: "server_error",
+        code: "INTERNAL_ERROR"
+      };
+      
+      logMessage(`* Unbehandelter Fehler: ${error.message}`, "error");
+      console.log("=== ENDE ANFRAGE ===\n");
+      
+      const errorResponse = { error: genericError };
       
       if (isStreamingRequested) {
-        console.log("=== ENDE ANFRAGE ===\n");
-        return simulateStreamingResponse(errorMessage, res);
+        return simulateStreamingResponse(JSON.stringify(errorResponse), res);
       } else {
-        console.log("=== ENDE ANFRAGE ===\n");
-        return res.json({
-          choices: [
-            {
-              message: {
-                content: errorMessage,
-                role: "assistant"
-              },
-              finish_reason: "error"
-            }
-          ]
-        });
+        return res.status(200).json(errorResponse);
       }
     }
-  } catch (error) {
-    const errorMessage = `Unexpected error: ${error.message}`;
-    logMessage(`* Error Code: Unerwarteter Fehler - ${error.message}`, "error");
-    logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
+  } catch (outerError) {
+    // Absoluter Fallback für Fehler auf höchster Ebene
+    const catastrophicError = {
+      message: outerError.message || "Critical server error",
+      type: "critical_error",
+      code: "SERVER_FAILURE"
+    };
+    
+    logMessage(`* KRITISCHER FEHLER: ${outerError.message}`, "error");
     console.log("=== ENDE ANFRAGE ===\n");
     
-    if (req.body?.stream) {
-      return simulateStreamingResponse(errorMessage, res);
-    } else {
-      return res.status(500).json({
-        choices: [
-          {
-            message: {
-              content: errorMessage,
-              role: "assistant"
-            },
-            finish_reason: "error"
-          }
-        ]
-      });
+    const errorResponse = { error: catastrophicError };
+    
+    try {
+      if (req.body?.stream) {
+        return simulateStreamingResponse(JSON.stringify(errorResponse), res);
+      } else {
+        return res.status(500).json(errorResponse);
+      }
+    } catch (finalError) {
+      // Letzte Rettung, falls selbst die Fehlerantwort fehlschlägt
+      console.error("Failed to send error response:", finalError);
+      res.status(500).end();
     }
   }
 }
