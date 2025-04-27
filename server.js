@@ -242,9 +242,7 @@ function simplifiedBypass(text) {
     'cock', 'pussy', 'cum', 'dick', 'penis', 'vagina', 'ass', 'tits', 'boobs',
     'anal', 'blowjob', 'handjob', 'orgasm', 'masturbate', 'sperm',
     'ficken', 'schwanz', 'muschi', 'fotze', 'arsch', 'titten', 'sperma',
-    'hure', 'nutte', 'geil', 'bumsen', 'wichsen', 'blasen', 'stepmom', 'dildo'
-    'fucking', 'whore', 'slut', 'explicit', 'hardcore', 'libido', 'sexy', 'prone'
-    'toys', 'moan', 'sucking', 'breasts', 'masturbating', 'choking', 'clit', 'clitoris'
+    'hure', 'nutte', 'geil', 'bumsen', 'wichsen', 'blasen'
   ];
   
   let result = processedText;
