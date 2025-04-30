@@ -12,27 +12,27 @@ app.use(express.json({ limit: '128mb' }));
 app.use((req, res, next) => {
   // Increase response timeout to 5 minutes
   res.setTimeout(300000); 
-  
+
   // Add request ID for better logging
   req.id = Date.now().toString(36) + Math.random().toString(36).substring(2);
-  
+
   // Add start time for duration tracking
   req.startTime = Date.now();
-  
+
   // Log request start with ID
   console.log(`\x1b[90m[${req.id}] Request started: ${req.method} ${req.originalUrl || req.url}\x1b[0m`);
-  
+
   // Track response completion
   res.on('finish', () => {
     const duration = Date.now() - req.startTime;
     console.log(`\x1b[90m[${req.id}] Request completed in ${duration}ms with status ${res.statusCode}\x1b[0m`);
   });
-  
+
   // Track response timeout
   res.on('timeout', () => {
     console.log(`\x1b[31m[${req.id}] Request timed out after ${Date.now() - req.startTime}ms\x1b[0m`);
   });
-  
+
   next();
 });
 
@@ -235,7 +235,7 @@ const SPICE_INSTRUCTIONS = [
 // Helper function to detect spicy content in a message
 function detectSpicyContent(text) {
   if (!text) return false;
-  
+
   const spicyWords = [
     "arousal", "erection", "wet", "vagina", "pussy", "cock", "penis", "breasts",
     "fucking", "fuck", "thrust", "moan", "climax", "orgasm", "cum", "nipples",
@@ -261,7 +261,7 @@ function applyBypassToText(text, level) {
   // Protect <summary> tags
   const protectedSections = [];
   const summaryPattern = /<summary>(.*?)<\/summary>/gs;
-  
+
   let textWithPlaceholders = text.replace(summaryPattern, (match, p1) => {
     protectedSections.push(p1);
     return `__PROTECTED_SECTION_${protectedSections.length - 1}__`;
@@ -459,29 +459,30 @@ function checkForTag(body, tag) {
 function extractChanceFromCommand(body, command, defaultValue) {
   if (!body) return defaultValue;
   const fullText = JSON.stringify(body);
-  
+
   const chancePattern = new RegExp(`${command}=1:(\\d+)`, 'i');
   const match = chancePattern.exec(fullText);
-  
+
   if (match && match[1]) {
     const value = parseInt(match[1], 10);
     return !isNaN(value) && value > 0 ? value : defaultValue;
   }
-  
+
   return defaultValue;
 }
 
 function extractBypassLevel(body) {
   if (!body) return "NO";
   const fullText = JSON.stringify(body);
-  
+
   const bypassPattern = /<BYPASS=(SYSTEM|LOW|MEDIUM|STRONG)>/i;
   const match = bypassPattern.exec(fullText);
-  
+
   if (match && match[1]) {
     return match[1].toUpperCase();
   }
-  
+
+  // Immer "NO" zurückgeben, wenn kein expliziter Bypass-Befehl vorhanden ist
   return "NO";
 }
 
@@ -490,7 +491,7 @@ function extractCustomContent(body, startTag, endTag) {
   const fullText = JSON.stringify(body);
   const regex = new RegExp(`${startTag}(.*?)${endTag}`, 'gs');
   const match = regex.exec(fullText);
-  
+
   if (match && match[1]) {
     try {
       let content = match[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
@@ -504,7 +505,7 @@ function extractCustomContent(body, startTag, endTag) {
       return match[1];
     }
   }
-  
+
   return null;
 }
 
@@ -523,11 +524,11 @@ function addJailbreakToMessages(body) {
   if (!newBody.messages || !Array.isArray(newBody.messages)) {
     newBody.messages = [];
   }
-  
+
   const jailbreakMarker = "## GAME SETTINGS";
-  
+
   let systemMessageIndex = newBody.messages.findIndex(msg => msg.role === "system");
-  
+
   if (systemMessageIndex !== -1) {
     if (!newBody.messages[systemMessageIndex].content?.includes(jailbreakMarker)) {
       newBody.messages[systemMessageIndex].content += "\n\n" + JAILBREAK_TEXT;
@@ -538,7 +539,7 @@ function addJailbreakToMessages(body) {
       content: JAILBREAK_TEXT 
     });
   }
-  
+
   return newBody;
 }
 
@@ -553,17 +554,20 @@ function transformJanitorToGoogleAI(body, bypassLevel = "NO") {
     if (msg.role === "user" || msg.role === "assistant" || msg.role === "system") {
       if (msg.content) {
         const role = msg.role === "user" ? "user" : "model";
-        
-        // Apply bypass based on level and message type
+
+        // Apply bypass ONLY if explicitly requested via command
         let content = msg.content;
         if (bypassLevel !== "NO") {
+          // Nur anwenden, wenn ein Bypass-Befehl explizit angegeben wurde
           if (bypassLevel === "SYSTEM" && msg.role === "system") {
             content = applyBypassToText(content, "STRONG");
-          } else if (bypassLevel !== "SYSTEM") {
+            logMessage(`* Bypass auf System-Nachricht angewendet (SYSTEM-Modus)`);
+          } else if (bypassLevel !== "SYSTEM" && msg.role !== "user") {
             content = applyBypassToText(content, bypassLevel);
+            logMessage(`* Bypass auf ${msg.role}-Nachricht angewendet (${bypassLevel}-Modus)`);
           }
         }
-        
+
         googleAIContents.push({
           role: role,
           parts: [{ text: content }]
@@ -578,15 +582,15 @@ function transformJanitorToGoogleAI(body, bypassLevel = "NO") {
 function ensureMarkdownFormatting(text) {
   const containsProperFormatting = text.includes('*') && text.includes('"');
   const hasBalancedAsterisks = (text.match(/\*/g) || []).length % 2 === 0;
-  
+
   if (containsProperFormatting && hasBalancedAsterisks) {
     const paragraphs = text.split(/\n\n+/);
     let hasCorrectFormat = true;
-    
+
     for (let i = 0; i < Math.min(paragraphs.length, 3); i++) {
       const para = paragraphs[i];
       const nonDialogueParts = para.split(/("[^"]+")/);
-      
+
       for (let j = 0; j < nonDialogueParts.length; j += 2) {
         const part = nonDialogueParts[j].trim();
         if (part && !part.startsWith('*') && !part.endsWith('*')) {
@@ -594,33 +598,33 @@ function ensureMarkdownFormatting(text) {
           break;
         }
       }
-      
+
       if (!hasCorrectFormat) break;
     }
-    
+
     if (hasCorrectFormat) {
       return text;
     }
   }
-  
+
   const paragraphs = text.split(/\n\n+/);
   let formattedParagraphs = [];
-  
+
   for (const paragraph of paragraphs) {
     if (!paragraph.trim()) {
       formattedParagraphs.push("");
       continue;
     }
-    
+
     if (paragraph.includes('"')) {
       const segments = paragraph.split(/("(?:[^"\\]|\\.)*")/);
       let formattedSegments = [];
-      
+
       for (let i = 0; i < segments.length; i++) {
         const segment = segments[i].trim();
-        
+
         if (!segment) continue;
-        
+
         if (segment.startsWith('"') && segment.endsWith('"')) {
           formattedSegments.push(segment);
         } 
@@ -629,32 +633,32 @@ function ensureMarkdownFormatting(text) {
           if (cleanSegment.startsWith('*') && cleanSegment.endsWith('*')) {
             cleanSegment = cleanSegment.substring(1, cleanSegment.length - 1).trim();
           }
-          
+
           cleanSegment = cleanSegment.replace(/([.!?])([A-Z])/g, '$1 $2');
-          
+
           if (cleanSegment) {
             formattedSegments.push(`*${cleanSegment}*`);
           }
         }
       }
-      
+
       formattedParagraphs.push(formattedSegments.join(' '));
     } 
     else {
       let cleanParagraph = paragraph.trim();
-      
+
       if (cleanParagraph.startsWith('*') && cleanParagraph.endsWith('*')) {
         cleanParagraph = cleanParagraph.substring(1, cleanParagraph.length - 1).trim();
       }
-      
+
       cleanParagraph = cleanParagraph.replace(/([.!?])([A-Z])/g, '$1 $2');
-      
+
       if (cleanParagraph) {
         formattedParagraphs.push(`*${cleanParagraph}*`);
       }
     }
   }
-  
+
   return formattedParagraphs.join('\n\n');
 }
 
@@ -662,7 +666,7 @@ function logMessage(message, type = 'info') {
   const timestamp = new Date().toISOString();
   let colorCode = '';
   let resetCode = '\x1b[0m';
-  
+
   switch(type) {
     case 'success':
       colorCode = '\x1b[32m';
@@ -678,11 +682,14 @@ function logMessage(message, type = 'info') {
       colorCode = '\x1b[36m';
       break;
   }
-  
+
   console.log(`${colorCode}${message}${resetCode}`);
 }
 
 function simulateStreamingResponse(fullContent, res) {
+  // Log that we're starting streaming
+  logMessage("* Starte simuliertes Streaming der Antwort...");
+  
   if (!res.headersSent) {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
@@ -691,23 +698,23 @@ function simulateStreamingResponse(fullContent, res) {
       'X-Accel-Buffering': 'no'
     });
   }
-  
+
   const sentences = fullContent.split(/(?<=[.!?])\s+/);
   let currentContentIndex = 0;
-  
+
   function sendNextChunk() {
     if (currentContentIndex >= sentences.length) {
       res.write('data: [DONE]\n\n');
       res.end();
       return;
     }
-    
+
     const sentence = sentences[currentContentIndex];
     currentContentIndex++;
-    
+
     if (sentence.length > 150) {
       const subChunks = sentence.split(/(?<=[,;:])\s+/);
-      
+
       if (subChunks.length > 1) {
         for (const chunk of subChunks) {
           sendSubChunk(chunk + ' ');
@@ -715,7 +722,7 @@ function simulateStreamingResponse(fullContent, res) {
       } else {
         const words = sentence.split(' ');
         const wordsPerChunk = Math.max(5, Math.min(10, Math.floor(words.length / 3)));
-        
+
         for (let i = 0; i < words.length; i += wordsPerChunk) {
           const endIndex = Math.min(i + wordsPerChunk, words.length);
           const chunk = words.slice(i, endIndex).join(' ') + (endIndex < words.length ? ' ' : '');
@@ -725,13 +732,13 @@ function simulateStreamingResponse(fullContent, res) {
     } else {
       sendSubChunk(sentence + ' ');
     }
-    
+
     setTimeout(sendNextChunk, 10);
   }
-  
+
   function sendSubChunk(chunkText) {
     chunkText = chunkText.replace(/([.!?])([A-Z])/g, '$1 $2');
-    
+
     const openAIChunk = {
       id: `chat-${Date.now()}-${currentContentIndex}`,
       object: "chat.completion.chunk",
@@ -743,17 +750,17 @@ function simulateStreamingResponse(fullContent, res) {
         finish_reason: null
       }]
     };
-    
+
     res.write(`data: ${JSON.stringify(openAIChunk)}\n\n`);
   }
-  
+
   sendNextChunk();
 }
 
 // Add an error-handling wrapper for the entire application
 app.use((err, req, res, next) => {
   console.error(`\x1b[31mUnhandled error: ${err.stack || err}\x1b[0m`);
-  
+
   // Don't expose internal errors to the client
   res.status(500).json({
     choices: [{
@@ -775,7 +782,7 @@ app.on('error', (error) => {
 async function handleProxyRequest(req, res, useJailbreak = false) {
   const requestTime = new Date().toISOString();
   console.log(`\n=== NEUE ANFRAGE (${requestTime}) ===`);
-  
+
   // Add request tracker object for better state management
   const requestTracker = {
     id: req.id || Date.now().toString(36),
@@ -783,10 +790,10 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
     retryCount: 0,
     maxRetries: 2 // Will try up to 3 times total (initial + 2 retries)
   };
-  
+
   try {
     let apiKey = null;
-    
+
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
       apiKey = req.headers.authorization.split(' ')[1].trim();
     } else if (req.headers['x-api-key']) {
@@ -797,13 +804,13 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
     } else if (req.query.api_key) {
       apiKey = req.query.api_key;
     }
-    
+
     if (!apiKey) {
       logMessage("* Error Code: Fehlender API-Schlüssel", "error");
       console.log("=== ENDE ANFRAGE ===\n");
       return res.status(401).json({ error: "Google AI API key missing" });
     }
-    
+
     // Extract commands and settings
     const prefillDisabled = checkForTag(req.body, '<PREFILL-OFF>');
     const oocInjectionDisabled = checkForTag(req.body, '<OOCINJECTION-OFF>');
@@ -812,29 +819,29 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
     const hasCrazyMode = checkForTag(req.body, '<CRAZYMODE>');
     const hasMedievalMode = checkForTag(req.body, '<MEDIEVALMODE>');
     const hasBetterSpiceMode = checkForTag(req.body, '<BETTERSPICEMODE>');
-    
+
     // Extract custom content
     const customPrefill = extractCustomContent(req.body, '<CUSTOMPREFILL>', '</CUSTOMPREFILL>');
     const customOOC = extractCustomContent(req.body, '<CUSTOMOOC>', '</CUSTOMOOC>');
-    
+
     // Extract probability settings with defaults
     const autoplotChance = extractChanceFromCommand(req.body, '<AUTOPLOT-CHANCE', 15);
     const betterSpiceChance = extractChanceFromCommand(req.body, '<BETTERSPICE-CHANCE', 20);
-    
+
     // Extract bypass level
     const bypassLevel = extractBypassLevel(req.body);
-    
+
     let clientBody = { ...req.body };
     const isStreamingRequested = clientBody.stream === true;
-    
+
     let modelName = req.body.model || "gemini-1.5-pro-latest";
-    
+
     // Log request details
     logMessage(`* Model: ${modelName}`);
     logMessage(`* Jailbreak: ${useJailbreak ? 'Aktiviert' : 'Deaktiviert'}`);
     logMessage(`* OOC Injection: ${!oocInjectionDisabled ? 'Aktiviert' : 'Deaktiviert'}`);
-    logMessage(`* Bypass Level: ${bypassLevel}`);
-    
+    logMessage(`* Bypass Level: ${bypassLevel} ${bypassLevel === "NO" ? '(Standardmäßig deaktiviert)' : '(Aktiviert durch Befehl)'}`);
+
     if (prefillDisabled) {
       logMessage(`* Prefill: Deaktiviert`);
     } else if (customPrefill) {
@@ -845,60 +852,81 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
       logMessage(`* Prefill: Aktiviert`);
     }
     
+    // OOC-Status logen
+    if (oocInjectionDisabled) {
+      logMessage(`* OOC-Anweisungen: Deaktiviert durch Befehl`);
+    } else if (customOOC) {
+      logMessage(`* OOC-Anweisungen: Standard + Benutzerdefiniert`);
+    } else {
+      logMessage(`* OOC-Anweisungen: Standard aktiv`);
+    }
+
     logMessage(`* Text Streaming: ${isStreamingRequested ? 'Aktiviert (Emuliert)' : 'Deaktiviert'}`);
-    
+
     if (hasAutoPlot) {
       logMessage(`* AutoPlot aktiv (1:${autoplotChance})`);
     }
-    
+
     if (hasCrazyMode) {
       logMessage(`* CrazyMode aktiv`);
     }
-    
+
     if (hasMedievalMode) {
       logMessage(`* Medieval Mode aktiv`);
     }
-    
+
     if (hasBetterSpiceMode) {
       logMessage(`* Better Spice Mode aktiv (1:${betterSpiceChance})`);
     }
-    
+
     if (forceMarkdown) {
       logMessage(`* Markdown-Prüfung aktiv`);
     }
-    
+
     if (useJailbreak) {
       clientBody = addJailbreakToMessages(clientBody);
     }
-    
+
     if (clientBody.messages && Array.isArray(clientBody.messages)) {
-      const lastUserMsgIndex = clientBody.messages.findIndex(msg => msg.role === 'user');
+      // FIX: Finde den Index der LETZTEN User-Nachricht statt der ersten
+      const userMsgIndices = [];
+      for (let i = 0; i < clientBody.messages.length; i++) {
+        if (clientBody.messages[i].role === 'user') {
+          userMsgIndices.push(i);
+        }
+      }
       
+      // Verwende den letzten Benutzer-Nachrichtenindex, wenn einer gefunden wurde
+      const lastUserMsgIndex = userMsgIndices.length > 0 ? userMsgIndices[userMsgIndices.length - 1] : -1;
+
       if (lastUserMsgIndex >= 0) {
-        if (!oocInjectionDisabled && typeof clientBody.messages[lastUserMsgIndex].content === 'string') {
+        // Zuerst den originalen Content speichern, bevor Änderungen vorgenommen werden
+        const originalContent = clientBody.messages[lastUserMsgIndex].content;
+        
+        // OOC-Anweisungen zur Nachricht hinzufügen (mit originalem Content)
+        if (!oocInjectionDisabled && typeof originalContent === 'string') {
           let combinedOOC = OOC_INSTRUCTION_2;
-          
+
           // Add AutoPlot instructions based on chance
           if (hasAutoPlot && Math.floor(Math.random() * autoplotChance) === 0) {
             combinedOOC += AUTOPLOT_OOC;
             logMessage("* AutoPlot Trigger", "warning");
           }
-          
+
           if (hasCrazyMode) {
             combinedOOC += CRAZYMODE_OOC;
           }
-          
+
           // Add Medieval Mode OOC if enabled
           if (hasMedievalMode) {
             combinedOOC += MEDIEVAL_OOC;
           }
-          
+
           // Add Better Spice instructions if enabled
           if (hasBetterSpiceMode) {
-            const userContent = clientBody.messages[lastUserMsgIndex].content;
-            const spiceDetected = detectSpicyContent(userContent);
+            const spiceDetected = detectSpicyContent(originalContent);
             const spiceTriggered = Math.floor(Math.random() * betterSpiceChance) === 0;
-            
+
             if (spiceDetected) {
               combinedOOC += BETTER_SPICE_OOC;
               logMessage("* Spice Content erkannt", "warning");
@@ -907,19 +935,33 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
               logMessage("* Random Spice Trigger", "warning");
             }
           }
-          
+
           if (customOOC) {
             combinedOOC += `\n[OOC: ${customOOC}]`;
           }
-          
+
           combinedOOC += OOC_INSTRUCTION_1;
-          
-          if (!clientBody.messages[lastUserMsgIndex].content.includes(OOC_INSTRUCTION_1) && 
-              !clientBody.messages[lastUserMsgIndex].content.includes(OOC_INSTRUCTION_2)) {
-            clientBody.messages[lastUserMsgIndex].content += combinedOOC;
+
+          // Überprüfen, ob die OOC-Anweisungen bereits vorhanden sind
+          if (!originalContent.includes(OOC_INSTRUCTION_1) && 
+              !originalContent.includes(OOC_INSTRUCTION_2)) {
+            // Füge die OOC-Anweisungen hinzu
+            clientBody.messages[lastUserMsgIndex].content = originalContent + combinedOOC;
+            logMessage("* OOC-Anweisungen hinzugefügt");
+          } else {
+            logMessage("* OOC-Anweisungen bereits vorhanden, werden nicht erneut hinzugefügt");
           }
         }
         
+        // Jetzt erst den Bypass anwenden, NACH dem Hinzufügen von OOC
+        if (bypassLevel !== "NO" && bypassLevel !== "SYSTEM" && 
+            typeof clientBody.messages[lastUserMsgIndex].content === 'string') {
+          // Apply bypass to the message content with OOC included
+          clientBody.messages[lastUserMsgIndex].content = 
+            applyBypassToText(clientBody.messages[lastUserMsgIndex].content, bypassLevel);
+          logMessage("* Bypass auf User-Nachricht angewendet");
+        }
+
         if (!prefillDisabled) {
           // Choose the appropriate prefill text
           let prefillText;
@@ -930,7 +972,7 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
           } else {
             prefillText = DEFAULT_PREFILL;
           }
-          
+
           if (lastUserMsgIndex === clientBody.messages.length - 1) {
             clientBody.messages.push({
               role: "assistant",
@@ -942,9 +984,9 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
         }
       }
     }
-    
+
     const safetySettings = getSafetySettings();
-    
+
     // Apply bypass to messages
     const googleAIContents = transformJanitorToGoogleAI(clientBody, bypassLevel);
     if (!googleAIContents) {
@@ -952,50 +994,50 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
       console.log("=== ENDE ANFRAGE ===\n");
       return res.status(400).json({ error: "Invalid message format" });
     }
-    
+
     // Extract temperature setting from Janitor request
     let userTemperature = clientBody.temperature;
-    
+
     logMessage(`* Using temperature: ${userTemperature !== undefined ? userTemperature : MODEL_DEFAULTS.temperature} ${userTemperature !== undefined ? '(from Janitor)' : '(default)'}`);
-    
+
     // Intercept max_tokens and always set to null to avoid "Empty Answer" errors
     const max_tokens = null; // Ignore user settings for max_tokens
-    
+
     if (clientBody.max_tokens) {
       logMessage(`* Ignoring max_tokens from Janitor (${clientBody.max_tokens}) to prevent errors`);
     }
-    
+
     const generationConfig = {
       temperature: userTemperature !== undefined ? userTemperature : MODEL_DEFAULTS.temperature,
       maxOutputTokens: max_tokens || MODEL_DEFAULTS.maxOutputTokens,
       topP: clientBody.top_p || MODEL_DEFAULTS.topP,
       topK: clientBody.top_k || MODEL_DEFAULTS.topK
     };
-    
+
     if (clientBody.frequency_penalty !== undefined) {
       generationConfig.frequencyPenalty = clientBody.frequency_penalty;
     }
-    
+
     if (clientBody.presence_penalty !== undefined) {
       generationConfig.presencePenalty = clientBody.presence_penalty;
     }
-    
+
     const googleAIBody = {
       contents: googleAIContents,
       safetySettings: safetySettings,
       generationConfig: generationConfig
     };
-    
+
     const endpoint = "generateContent";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:${endpoint}?key=${apiKey}`;
-    
+
     try {
       // Function to execute request with retry logic
       const executeWithRetry = async (retryCount = 0) => {
         try {
           logMessage(`* Anfrage wird an Google AI gesendet${retryCount > 0 ? ` (Retry ${retryCount}/${requestTracker.maxRetries})` : ''}...`);
           const requestStartTime = Date.now();
-          
+
           const response = await apiClient.post(url, googleAIBody, { 
             headers: {
               'Content-Type': 'application/json; charset=utf-8',
@@ -1007,10 +1049,10 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
             validateStatus: status => status < 500, // Only retry on server errors
             signal: AbortSignal.timeout(180000) // Alternative timeout mechanism
           });
-          
+
           const requestDuration = Date.now() - requestStartTime;
           logMessage(`* Google AI-Antwort erhalten (${requestDuration}ms)`);
-          
+
           return response;
         } catch (error) {
           // Check if we should retry
@@ -1019,39 +1061,39 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
                error.code === 'ETIMEDOUT' || 
                error.code === 'ECONNRESET' ||
                (error.response && error.response.status >= 500))) {
-              
+
             // Exponential backoff: 1s, 2s, 4s, ...
             const backoffTime = Math.pow(2, retryCount) * 1000;
             logMessage(`* Verbindungsfehler. Retry in ${backoffTime/1000}s... (${error.message})`, "warning");
-            
+
             await new Promise(resolve => setTimeout(resolve, backoffTime));
             return executeWithRetry(retryCount + 1);
           }
-          
+
           // If we shouldn't retry or max retries reached, throw the error
           throw error;
         }
       };
-      
+
       // Execute request with retry logic
       const response = await executeWithRetry();
-      
+
       if (response.data) {
         const responseData = response.data;
-        
+
         if (responseData.candidates && responseData.candidates.length > 0) {
           const candidate = responseData.candidates[0];
           let finalContent = "";
-          
+
           if (candidate.content && candidate.content.parts) {
             finalContent = candidate.content.parts.map(part => part.text || "").join("\n");
           }
-          
+
           if (!finalContent || finalContent.trim() === "") {
             const errorMessage = "Error: Empty Answer";
             logMessage("* Error Code: Leere Antwort von Google AI", "error");
             logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
-            
+
             if (isStreamingRequested) {
               console.log("=== ENDE ANFRAGE ===\n");
               return simulateStreamingResponse(errorMessage, res);
@@ -1070,12 +1112,12 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
               });
             }
           }
-          
+
           if (forceMarkdown) {
             logMessage("* Markdown-Formatierung wird angewendet...");
             finalContent = ensureMarkdownFormatting(finalContent);
           }
-          
+
           if (isStreamingRequested) {
             logMessage("* Erfolg an Janitor (Streaming emuliert)", "success");
             console.log("=== ENDE ANFRAGE ===\n");
@@ -1101,7 +1143,7 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
                 total_tokens: 0
               }
             };
-            
+
             logMessage("* Erfolg an Janitor", "success");
             console.log("=== ENDE ANFRAGE ===\n");
             return res.json(formattedResponse);
@@ -1110,7 +1152,7 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
           const errorMessage = "Error: Empty Answer";
           logMessage("* Error Code: Keine gültige Antwort", "error");
           logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
-          
+
           if (isStreamingRequested) {
             console.log("=== ENDE ANFRAGE ===\n");
             return simulateStreamingResponse(errorMessage, res);
@@ -1140,7 +1182,7 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
       const errorMessage = `Error: ${error.message}`;
       logMessage(`* Error Code: ${error.message}`, "error");
       logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
-      
+
       if (isStreamingRequested) {
         console.log("=== ENDE ANFRAGE ===\n");
         return simulateStreamingResponse(errorMessage, res);
@@ -1164,7 +1206,7 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
     logMessage(`* Error Code: Unerwarteter Fehler - ${error.message}`, "error");
     logMessage("* Fehlermeldung an Janitor: " + errorMessage, "error");
     console.log("=== ENDE ANFRAGE ===\n");
-    
+
     if (req.body?.stream) {
       return simulateStreamingResponse(errorMessage, res);
     } else {
