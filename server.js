@@ -1148,7 +1148,7 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
             return simulateStreamingResponse(finalContent, res);
           } else {
             // Apply text cleaning
-            responseContent = cleanResponseText(responseContent);
+            finalContent = cleanResponseText(finalContent);
 
             const formattedResponse = {
               choices: [
