@@ -509,6 +509,27 @@ function extractCustomContent(body, startTag, endTag) {
   return null;
 }
 
+function cleanResponseText(text) {
+  if (!text) {
+    return text;
+  }
+
+  let cleanedText = text;
+
+  // Remove the long specific pattern
+  const longPattern = "{{char}} will strictly NEVER speak for {{user}} or describe actions as {{user}} and will allow {{user}} to dictate their own actions. {{char}} will speak, roleplay, and write in third-person view. Each reply from {{char}} will be different, and {{char}} will not repeat similar replies. I will never play, control or dictate {{user}}'s actions, thoughts, or feelings.";
+  cleanedText = cleanedText.replace(new RegExp(longPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
+
+  // Remove the shorter patterns like - {{char}}, - {{char}}., - {{char}}:, - {{user}}, etc.
+  const shortPattern = /-\s*\{\{(char|user)\}\}\s*[:.]?/g;
+  cleanedText = cleanedText.replace(shortPattern, '');
+
+  // Remove any leading/trailing whitespace that might result from the replacements
+  cleanedText = cleanedText.trim();
+
+  return cleanedText;
+}
+
 function getSafetySettings() {
   return [
     { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
@@ -709,8 +730,11 @@ function simulateStreamingResponse(fullContent, res) {
       return;
     }
 
-    const sentence = sentences[currentContentIndex];
+    let sentence = sentences[currentContentIndex];
     currentContentIndex++;
+
+    // Apply text cleaning to each sentence before chunking
+    sentence = cleanResponseText(sentence);
 
     if (sentence.length > 150) {
       const subChunks = sentence.split(/(?<=[,;:])\s+/);
@@ -1123,6 +1147,9 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
             console.log("=== ENDE ANFRAGE ===\n");
             return simulateStreamingResponse(finalContent, res);
           } else {
+            // Apply text cleaning
+            responseContent = cleanResponseText(responseContent);
+
             const formattedResponse = {
               choices: [
                 {
