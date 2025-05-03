@@ -450,6 +450,164 @@ function applyStrongBypass(text) {
   return text;
 }
 
+function decodeBypassedText(text) {
+  if (!text) {
+    return text;
+  }
+
+  let decodedText = text;
+
+  // Reverse Strong Bypass (strikethrough and special characters)
+  const reverseStrongBypassWords = {
+    "s̵e̵x̵": "sex",
+    "p̵o̵r̵n̵": "porn",
+    "n̵u̵d̵e̵": "nude",
+    "n̵a̵k̵e̵d̵": "naked",
+    "f̵u̵c̵k̵": "fuck",
+    "p̵e̵n̵i̵s̵": "penis",
+    "v̵a̵g̵i̵n̵a̵": "vagina",
+    "k̵i̵l̵l̵": "kill",
+    "m̵u̵r̵d̵e̵r̵": "murder",
+    "v̵i̵o̵l̵e̵n̵c̵e̵": "violence",
+    "r̵a̵p̵e̵": "rape",
+    "t̵o̵r̵t̵u̵r̵e̵": "torture",
+    "b̵l̵o̵o̵d̵y̵": "bloody",
+    "b̵r̵u̵t̵a̵l̵": "brutal",
+    "s̵e̵x̵u̵a̵l̵": "sexual",
+    "e̵x̵p̵l̵i̵c̵i̵t̵": "explicit",
+    "g̵o̵r̵e̵": "gore",
+    "i̵n̵t̵i̵m̵a̵t̵e̵": "intimate",
+    "c̵o̵n̵t̵e̵n̵t̵": "content",
+    "a̵d̵u̵l̵t̵": "adult",
+    "g̵e̵n̵i̵t̵a̵l̵s̵": "genitals",
+    "n̵s̵f̵w̵": "nsfw",
+    "e̵r̵o̵t̵i̵c̵": "erotic",
+    "c̵h̵i̵l̵d̵": "child",
+    "k̵i̵d̵": "kid",
+    "y̵o̵u̵n̵g̵": "young",
+    "b̵l̵o̵o̵d̵": "blood",
+    "d̵e̵a̵t̵h̵": "death",
+    "m̵a̵t̵u̵r̵e̵": "mature",
+    "l̵e̵w̵d̵": "lewd",
+    "f̵e̵t̵i̵s̵h̵": "fetish",
+    "w̵e̵a̵p̵o̵n̵": "weapon",
+    "c̵o̵r̵p̵s̵e̵": "corpse",
+    "d̵e̵a̵d̵": "dead",
+    "h̵a̵r̵m̵": "harm",
+    "s̵u̵i̵c̵i̵d̵e̵": "suicide",
+    "a̵b̵u̵s̵e̵": "abuse",
+    "v̵i̵o̵l̵e̵n̵t̵": "violent",
+    "g̵r̵a̵p̵h̵i̵c̵": "graphic",
+    "i̵n̵j̵u̵r̵y̵": "injury",
+    "m̵i̵n̵o̵r̵": "minor"
+  };
+
+  for (const [pattern, replacement] of Object.entries(reverseStrongBypassWords)) {
+    const regex = new RegExp(pattern.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+    decodedText = decodedText.replace(regex, replacement);
+  }
+
+  decodedText = decodedText.replace(/ṡëẍ/gi, "sex");
+  decodedText = decodedText.replace(/ṗöṙñ/gi, "porn");
+  decodedText = decodedText.replace(/ä\.dült çøñtëñt/gi, "adult content");
+  decodedText = decodedText.replace(/ëẍṗḷïçït çøñtëñt/gi, "explicit content");
+  decodedText = decodedText.replace(/ṡëẍüäḷ çøñtëñt/gi, "sexual content");
+
+
+  // Reverse Medium Bypass (dots between characters)
+  const reverseMediumBypassWords = {
+    "s.ex": "sex",
+    "p.orn": "porn",
+    "n.ude": "nude",
+    "n.aked": "naked",
+    "f.uck": "fuck",
+    "pe.nis": "penis",
+    "va.gina": "vagina",
+    "k.ill": "kill",
+    "mur.der": "murder",
+    "vio.lence": "violence",
+    "r.ape": "rape",
+    "tor.ture": "torture",
+    "blo.ody": "bloody",
+    "bru.tal": "brutal",
+    "s.exual": "sexual",
+    "exp.licit": "explicit",
+    "g.ore": "gore",
+    "inti.mate": "intimate",
+    "ch.ild": "child",
+    "k.id": "kid",
+    "yo.ung": "young",
+    "bl.ood": "blood",
+    "de.ath": "death",
+    "n.s.f.w": "nsfw",
+    "ad.ult": "adult",
+    "mat.ure": "mature",
+    "er.otic": "erotic",
+    "le.wd": "lewd",
+    "fet.ish": "fetish",
+    "wea.pon": "weapon",
+    "cor.pse": "corpse",
+    "de.ad": "dead",
+    "ha.rm": "harm",
+    "sui.cide": "suicide",
+    "ab.use": "abuse",
+    "vio.lent": "violent",
+    "gra.phic": "graphic"
+  };
+
+  for (const [pattern, replacement] of Object.entries(reverseMediumBypassWords)) {
+    const regex = new RegExp(pattern.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+    decodedText = decodedText.replace(regex, replacement);
+  }
+
+  decodedText = decodedText.replace(/c0ntent/gi, "content");
+  decodedText = decodedText.replace(/a\.dult/gi, "adult");
+  decodedText = decodedText.replace(/expl1cit/gi, "explicit");
+
+
+  // Reverse Light Bypass (simple separations)
+  const reverseLightBypassWords = {
+    "s ex": "sex",
+    "p orn": "porn",
+    "nu de": "nude",
+    "na ked": "naked",
+    "f uck": "fuck",
+    "pe nis": "penis",
+    "va gina": "vagina",
+    "k ill": "kill",
+    "mur der": "murder",
+    "vio lence": "violence",
+    "r ape": "rape",
+    "tor ture": "torture",
+    "chi ld": "child",
+    "k id": "kid",
+    "blo od": "blood",
+    "g ore": "gore",
+    "de ath": "death",
+    "n s f w": "nsfw",
+    "exp licit": "explicit",
+    "adu lt": "adult",
+    "mat ure": "mature",
+    "ero tic": "erotic",
+    "le wd": "lewd",
+    "fet ish": "fetish",
+    "wea pon": "weapon",
+    "cor pse": "corpse",
+    "de ad": "dead",
+    "ha rm": "harm",
+    "sui cide": "suicide",
+    "abu se": "abuse",
+    "yo ung": "young"
+  };
+
+  for (const [pattern, replacement] of Object.entries(reverseLightBypassWords)) {
+    const regex = new RegExp(pattern.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+    decodedText = decodedText.replace(regex, replacement);
+  }
+
+  return decodedText;
+}
+
 function checkForTag(body, tag) {
   if (!body) return false;
   const fullText = JSON.stringify(body);
@@ -733,8 +891,9 @@ function simulateStreamingResponse(fullContent, res) {
     let sentence = sentences[currentContentIndex];
     currentContentIndex++;
 
-    // Apply text cleaning to each sentence before chunking
+    // Apply text cleaning and decoding to each sentence before chunking
     sentence = cleanResponseText(sentence);
+    sentence = decodeBypassedText(sentence);
 
     if (sentence.length > 150) {
       const subChunks = sentence.split(/(?<=[,;:])\s+/);
@@ -1154,7 +1313,7 @@ async function handleProxyRequest(req, res, useJailbreak = false) {
               choices: [
                 {
                   message: {
-                    content: finalContent,
+                    content: decodeBypassedText(finalContent),
                     role: "assistant"
                   },
                   finish_reason: "stop"
